@@ -1214,6 +1214,61 @@
       gap: 10px;
     }
 
+    .position-ticket {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .position-ticket.ce {
+      background: var(--ce-bg);
+      border-color: #a8d8c1;
+    }
+
+    .position-ticket.pe {
+      background: var(--pe-bg);
+      border-color: #f3b6bc;
+    }
+
+    .position-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: start;
+      padding: 14px;
+      border-bottom: 1px solid rgba(20, 24, 32, 0.08);
+    }
+
+    .position-head h3 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.15;
+    }
+
+    .position-head small,
+    .position-note {
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .position-body {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .position-pnl {
+      display: grid;
+      gap: 4px;
+    }
+
+    .position-pnl strong {
+      font-size: 34px;
+      line-height: 1;
+    }
+
     .mini-stat {
       border: 1px solid var(--line);
       border-radius: var(--radius-sm);
@@ -1949,6 +2004,7 @@
     <nav class="tabs" aria-label="Dashboard views">
       <button type="button" class="tab home-tab active" data-view="scannerView" hidden>Scanner</button>
       <button type="button" class="tab" data-view="signalView">Signals</button>
+      <button type="button" class="tab" data-view="positionView">Position</button>
       <button type="button" class="tab" data-view="chainView">Option Chain</button>
       <button type="button" class="tab" data-view="strategyView">Strategy</button>
       <button type="button" class="tab" data-view="dataView">Data</button>
@@ -2122,6 +2178,31 @@
         </section>
       </section>
 
+      <section class="view" id="positionView">
+        <div class="summary-grid" id="positionSummary"></div>
+        <div class="two-col">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Position</h2>
+              <span id="positionSubtitle">Paper auto position</span>
+            </div>
+            <div class="panel-body">
+              <div id="positionCard"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Position History</h2>
+              <span>Signal entries and exits</span>
+            </div>
+            <div class="panel-body">
+              <div class="history-list" id="positionHistory"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <section class="view" id="chainView">
         <section class="panel">
           <div class="panel-head">
@@ -2264,7 +2345,10 @@
       lastAutoError: "",
       alertsEnabled: false,
       lastSignalKey: "",
-      signalHistory: []
+      signalHistory: [],
+      paperPosition: null,
+      positionHistory: [],
+      lastPositionExitKey: ""
     };
 
     const els = {
@@ -2282,6 +2366,10 @@
       signalCards: document.getElementById("signalCards"),
       signalSubtitle: document.getElementById("signalSubtitle"),
       signalReasonTable: document.querySelector("#signalReasonTable tbody"),
+      positionSummary: document.getElementById("positionSummary"),
+      positionSubtitle: document.getElementById("positionSubtitle"),
+      positionCard: document.getElementById("positionCard"),
+      positionHistory: document.getElementById("positionHistory"),
       scannerTable: document.querySelector("#scannerTable tbody"),
       scannerMobileCards: document.getElementById("scannerMobileCards"),
       buildupTable: document.querySelector("#buildupTable tbody"),
@@ -3008,6 +3096,7 @@
       state.analysis = groups.map(group => analyseExpiry(group.expiry, group.rows, spot));
       state.activeAnalysis = chooseActiveAnalysis();
       recordSignalHistory();
+      updatePositionEngine();
       renderAll();
     }
 
@@ -3272,9 +3361,9 @@
       };
     }
 
-    function signalRows() {
+    function signalRows(useSearch = true) {
       const allowed = new Set(["CE Buy", "PE Buy"]);
-      const search = els.searchInput.value.trim().toLowerCase();
+      const search = useSearch ? els.searchInput.value.trim().toLowerCase() : "";
       return state.analysis.flatMap(a => a.rows.map(row => ({ ...row, analysis: a })))
         .filter(row => allowed.has(row.build.label))
         .filter(row => {
@@ -3369,6 +3458,225 @@
           <td class="left" data-label="Reason">${escapeHtml(signalReason(row))}</td>
         </tr>`;
       }).join("") || `<tr><td class="left" colspan="14">No CE/PE buy signals above the current score/search filter. Lower Minimum Score or clear the Strike / Signal Filter.</td></tr>`;
+    }
+
+    function positionKey(row) {
+      if (!row) return "";
+      return [row.expiry, row.strike, row.type, row.build.label].join("|");
+    }
+
+    function bestPositionSignal() {
+      const minScore = asNumber(els.scoreInput.value, 55);
+      return signalRows(false)
+        .filter(row => row.score >= minScore)
+        .filter(row => row.analysis.focusStrikes?.has(row.strike))
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          const distanceA = Math.abs(a.strike - a.analysis.atmStrike);
+          const distanceB = Math.abs(b.strike - b.analysis.atmStrike);
+          return distanceA - distanceB;
+        })[0] || null;
+    }
+
+    function positionRisk(row, entryPrice = row?.ltp || 0) {
+      const premium = Math.max(asNumber(entryPrice, 0), 0.05);
+      const thetaPressure = Math.abs(asNumber(row?.theta, 0)) * 0.5;
+      const baseRisk = Math.max(premium * 0.18, thetaPressure, 4);
+      const risk = clamp(baseRisk, 2, Math.max(8, premium * 0.45));
+      const reward = Math.max(risk * 1.6, premium * 0.28);
+      return { risk, reward };
+    }
+
+    function findPositionRow(position) {
+      if (!position) return null;
+      return state.analysis
+        .flatMap(a => a.rows.map(row => ({ ...row, analysis: a })))
+        .find(row => row.expiry === position.expiry && row.strike === position.strike && row.type === position.type) || null;
+    }
+
+    function openPaperPosition(row, note = "Auto paper entry") {
+      const cfg = signalConfig(row.build.label);
+      const levels = positionRisk(row, row.ltp);
+      state.paperPosition = {
+        key: positionKey(row),
+        status: "OPEN",
+        signal: row.build.label,
+        type: row.type,
+        strike: row.strike,
+        expiry: row.expiry,
+        expiryType: row.analysis.expiryType,
+        optionClass: cfg.optionClass,
+        biasClass: cfg.biasClass,
+        bias: cfg.bias,
+        entry: row.ltp,
+        current: row.ltp,
+        target: row.ltp + levels.reward,
+        stop: Math.max(row.ltp - levels.risk, 0.05),
+        initialRisk: levels.risk,
+        maxPrice: row.ltp,
+        score: row.score,
+        oi: row.oi,
+        changeOI: row.changeOI,
+        iv: row.iv,
+        delta: row.delta,
+        gamma: row.gamma,
+        theta: row.theta,
+        openedAt: new Date(),
+        updatedAt: new Date(),
+        updates: 0,
+        note,
+        reason: signalReason(row)
+      };
+      state.lastPositionExitKey = "";
+    }
+
+    function closePaperPosition(reason, exitPrice) {
+      const position = state.paperPosition;
+      if (!position) return;
+      position.status = "CLOSED";
+      position.exitReason = reason;
+      position.exitPrice = exitPrice;
+      position.current = exitPrice;
+      position.closedAt = new Date();
+      position.updatedAt = new Date();
+      state.positionHistory.unshift({ ...position });
+      state.positionHistory = state.positionHistory.slice(0, 10);
+      state.lastPositionExitKey = position.key;
+      state.paperPosition = null;
+    }
+
+    function updateOpenPaperPosition(row) {
+      const position = state.paperPosition;
+      if (!position || !row) return;
+      position.current = row.ltp;
+      position.score = row.score;
+      position.oi = row.oi;
+      position.changeOI = row.changeOI;
+      position.iv = row.iv;
+      position.delta = row.delta;
+      position.gamma = row.gamma;
+      position.theta = row.theta;
+      position.maxPrice = Math.max(position.maxPrice, row.ltp);
+      position.updatedAt = new Date();
+      position.updates += 1;
+      position.reason = signalReason(row);
+      const levels = positionRisk(row, position.entry);
+      if (row.ltp > position.entry) {
+        position.stop = Math.max(position.stop, row.ltp - levels.risk * 0.85);
+      }
+      if (row.score >= 70) {
+        position.target = Math.max(position.target, row.ltp + levels.risk * 1.15);
+      }
+      if (row.score < asNumber(els.scoreInput.value, 55)) {
+        position.stop = Math.max(position.stop, row.ltp - levels.risk * 0.55);
+        position.note = "Signal below score filter; stop tightened";
+      } else {
+        position.note = "Auto paper position live";
+      }
+    }
+
+    function updatePositionEngine() {
+      const top = bestPositionSignal();
+      if (state.paperPosition?.status === "OPEN") {
+        const position = state.paperPosition;
+        const row = findPositionRow(position);
+        if (!row) {
+          closePaperPosition("Data missing / expiry changed", position.current || position.entry);
+        } else {
+          const previousTarget = position.target;
+          const previousStop = position.stop;
+          updateOpenPaperPosition(row);
+          if (position.current >= previousTarget) {
+            closePaperPosition("Target hit", position.current);
+          } else if (position.current <= previousStop) {
+            closePaperPosition("Stop loss hit", position.current);
+          } else if (top && positionKey(top) !== position.key && top.score >= position.score + 8) {
+            closePaperPosition("Signal changed to " + top.build.label + " " + fmt(top.strike), position.current);
+          }
+        }
+      }
+      if (!state.paperPosition && top && positionKey(top) !== state.lastPositionExitKey) {
+        openPaperPosition(top);
+      }
+    }
+
+    function positionPnl(position) {
+      if (!position) return { value: 0, pct: 0, className: "neutral", label: "-" };
+      const value = asNumber(position.current, 0) - asNumber(position.entry, 0);
+      const pctValue = position.entry ? (value / position.entry) * 100 : 0;
+      return {
+        value,
+        pct: pctValue,
+        className: value >= 0 ? "good" : "bad",
+        label: (value >= 0 ? "+" : "") + fmt(value, 2)
+      };
+    }
+
+    function timeLabel(value) {
+      return value ? value.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+    }
+
+    function renderPositionTab() {
+      const position = state.paperPosition;
+      const top = bestPositionSignal();
+      if (!position) {
+        els.positionSubtitle.textContent = top ? "Ready for next paper entry" : "Waiting for buy signal";
+        els.positionSummary.innerHTML = [
+          card("Mode", "Paper", "Broker order off", "watch"),
+          card("Top Signal", top ? top.build.label : "-", top ? fmt(top.strike) + " " + top.type + " score " + fmt(top.score, 0) : "No near-ATM buy setup", top ? signalConfig(top.build.label).biasClass : "neutral"),
+          card("Position", "Flat", state.lastPositionExitKey ? "Last signal closed" : "No active paper trade", "neutral"),
+          card("Refresh", formatInterval(state.autoIntervalMs), state.autoEnabled ? "Auto scanner running" : "Auto scanner off", state.autoEnabled ? "good" : "watch")
+        ].join("");
+        els.positionCard.innerHTML = `<div class="empty">No open paper position. Strong near-ATM CE Buy or PE Buy signal will create one automatically.</div>`;
+      } else {
+        const pnl = positionPnl(position);
+        const statusClass = position.status === "OPEN" ? pnl.className : "watch";
+        els.positionSubtitle.textContent = position.signal + " live paper position";
+        els.positionSummary.innerHTML = [
+          card("Mode", "Paper", "No broker order sent", "watch"),
+          card("Signal", position.signal, fmt(position.strike) + " " + position.type + " / " + position.bias, position.biasClass),
+          card("Live P/L", pnl.label, pct(pnl.pct, 2) + " per option unit", pnl.className),
+          card("Risk", "T " + fmt(position.target, 2), "SL " + fmt(position.stop, 2), "info"),
+          card("Updates", fmt(position.updates), "Last " + timeLabel(position.updatedAt), "neutral")
+        ].join("");
+        els.positionCard.innerHTML = `
+          <article class="position-ticket ${position.optionClass}">
+            <div class="position-head">
+              <div>
+                <h3>${escapeHtml(position.signal)} ${fmt(position.strike)} ${position.type}</h3>
+                <small>${prettyDate(position.expiry)} ${position.expiryType} / opened ${timeLabel(position.openedAt)}</small>
+              </div>
+              <span class="badge ${statusClass}">${position.status}</span>
+            </div>
+            <div class="position-body">
+              <div class="position-pnl">
+                <small>Live P/L per option unit</small>
+                <strong class="${pnl.value >= 0 ? "num-pos" : "num-neg"}">${pnl.label}</strong>
+                <span>Entry ${fmt(position.entry, 2)} / Current ${fmt(position.current, 2)}</span>
+              </div>
+              <div class="mini-grid">
+                ${mini("Target", fmt(position.target, 2))}
+                ${mini("Stop Loss", fmt(position.stop, 2))}
+                ${mini("Max Price", fmt(position.maxPrice, 2))}
+                ${mini("Score", fmt(position.score, 0))}
+                ${mini("Chg OI", fmtCompact(position.changeOI))}
+                ${mini("IV", pct(position.iv, 2))}
+              </div>
+              <div class="position-note">${escapeHtml(position.note)}. ${escapeHtml(position.reason)}</div>
+            </div>
+          </article>`;
+      }
+      if (!state.positionHistory.length) {
+        els.positionHistory.innerHTML = `<div class="empty">No closed paper positions yet.</div>`;
+        return;
+      }
+      els.positionHistory.innerHTML = state.positionHistory.map(item => {
+        const pnl = positionPnl(item);
+        return `<div class="history-item ${pnl.className}">
+          <span>${timeLabel(item.closedAt)}</span>
+          <b>${escapeHtml(item.signal)} ${fmt(item.strike)} ${item.type} - ${escapeHtml(item.exitReason)} - P/L ${pnl.label} (${pct(pnl.pct, 2)})</b>
+        </div>`;
+      }).join("");
     }
 
     function renderEngine() {
@@ -3781,6 +4089,7 @@
       renderScannerTable();
       renderBuildupTable();
       renderSignalTab();
+      renderPositionTab();
       renderEngine();
       renderTradeGuard();
       renderSignalHistory();
