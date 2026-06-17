@@ -528,6 +528,10 @@
       margin-bottom: 12px;
     }
 
+    .mobile-cockpit {
+      display: none;
+    }
+
     .metric-card {
       background: var(--surface);
       border: 1px solid var(--line);
@@ -687,6 +691,10 @@
     .signal-card.pe {
       background: var(--pe-bg);
       border-color: #f3b6bc;
+    }
+
+    .mobile-action-row {
+      display: none;
     }
 
     .signal-card h3 {
@@ -1419,9 +1427,142 @@
         padding-top: 10px;
       }
 
+      .mobile-cockpit {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .cockpit-hero {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .cockpit-top {
+        padding: 12px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        align-items: start;
+        background: #111820;
+        color: white;
+      }
+
+      .cockpit-top span {
+        display: block;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 11px;
+        text-transform: uppercase;
+        font-weight: 850;
+      }
+
+      .cockpit-top strong {
+        display: block;
+        font-size: 24px;
+        line-height: 1.05;
+        margin-top: 4px;
+      }
+
+      .cockpit-top small {
+        display: block;
+        color: rgba(255, 255, 255, 0.74);
+        line-height: 1.35;
+        margin-top: 5px;
+      }
+
+      .cockpit-score {
+        text-align: right;
+      }
+
+      .cockpit-score b {
+        display: block;
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .cockpit-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 1px solid var(--line);
+      }
+
+      .cockpit-stat {
+        padding: 10px 8px;
+        border-right: 1px solid var(--line);
+        min-width: 0;
+      }
+
+      .cockpit-stat:nth-child(3n) {
+        border-right: 0;
+      }
+
+      .cockpit-stat span {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: 850;
+        margin-bottom: 4px;
+      }
+
+      .cockpit-stat b {
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .mobile-action-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .mobile-action-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 10px;
+        display: grid;
+        gap: 7px;
+        min-height: 118px;
+      }
+
+      .mobile-action-card.ce {
+        background: var(--ce-bg);
+        border-color: #a8d8c1;
+      }
+
+      .mobile-action-card.pe {
+        background: var(--pe-bg);
+        border-color: #f3b6bc;
+      }
+
+      .mobile-action-card h3 {
+        margin: 0;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+      }
+
+      .mobile-action-card strong {
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .mobile-action-card small {
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
       .summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
+      }
+
+      #summaryGrid {
+        display: none;
       }
 
       .metric-card {
@@ -1641,6 +1782,7 @@
 
     <main>
       <section class="view active" id="scannerView">
+        <div class="mobile-cockpit" id="mobileCockpit"></div>
         <div class="summary-grid" id="summaryGrid"></div>
         <div class="scanner-layout">
           <div class="stack">
@@ -1946,6 +2088,7 @@
       scoreInput: document.getElementById("scoreInput"),
       scoreOutput: document.getElementById("scoreOutput"),
       searchInput: document.getElementById("searchInput"),
+      mobileCockpit: document.getElementById("mobileCockpit"),
       summaryGrid: document.getElementById("summaryGrid"),
       signalSummary: document.getElementById("signalSummary"),
       signalCards: document.getElementById("signalCards"),
@@ -2673,6 +2816,7 @@
       const a = state.activeAnalysis;
       if (!a) {
         els.summaryGrid.innerHTML = `<div class="empty">No contracts loaded</div>`;
+        els.mobileCockpit.innerHTML = `<div class="empty">No contracts loaded</div>`;
         return;
       }
       els.summaryGrid.innerHTML = [
@@ -2685,6 +2829,74 @@
         card("Average IV", pct(a.avgIv, 2), "ATM IV " + pct(a.atmIv, 2), a.avgIv > 18 ? "watch" : "info"),
         card("Theta Load", fmt(a.thetaAvg, 2), "Average absolute theta near ATM", a.thetaAvg > 10 ? "watch" : "")
       ].join("");
+      renderMobileCockpit();
+    }
+
+    function renderMobileCockpit() {
+      const a = state.activeAnalysis;
+      if (!a) return;
+      const spot = asNumber(els.spotInput.value, 0);
+      const diff = a.bullish - a.bearish;
+      const ceBuy = bestSignal("CE Buy");
+      const peBuy = bestSignal("PE Buy");
+      const signalClass = a.signal.className || "neutral";
+      els.mobileCockpit.innerHTML = `
+        <section class="cockpit-hero">
+          <div class="cockpit-top">
+            <div>
+              <span>Live Bias</span>
+              <strong>${escapeHtml(a.signal.label)}</strong>
+              <small>${escapeHtml(a.signal.text)}</small>
+            </div>
+            <div class="cockpit-score">
+              <span>Score</span>
+              <b>${fmt(Math.abs(diff), 0)}</b>
+              <span class="badge ${signalClass}">${diff >= 0 ? "Bull +" : "Bear "}${fmt(diff, 0)}</span>
+            </div>
+          </div>
+          <div class="cockpit-grid">
+            ${cockpitStat("Spot", fmt(spot, 2))}
+            ${cockpitStat("ATM Strike", fmt(a.atmStrike))}
+            ${cockpitStat("Expiry", expiryLabel(a))}
+            ${cockpitStat("Support", a.maxPe ? fmt(a.maxPe.strike) + " PE" : "-")}
+            ${cockpitStat("Resistance", a.maxCe ? fmt(a.maxCe.strike) + " CE" : "-")}
+            ${cockpitStat("Premium", fmt(a.atmPremium, 2))}
+          </div>
+        </section>
+        <div class="mobile-action-row">
+          ${mobileActionCard("CE", ceBuy, "Bullish call buy")}
+          ${mobileActionCard("PE", peBuy, "Bearish put buy")}
+        </div>`;
+    }
+
+    function cockpitStat(label, value) {
+      return `<div class="cockpit-stat"><span>${escapeHtml(label)}</span><b>${value}</b></div>`;
+    }
+
+    function bestSignal(label) {
+      return state.analysis
+        .flatMap(a => a.rows.map(row => ({ ...row, analysis: a })))
+        .filter(row => row.build.label === label)
+        .sort((a, b) => b.score - a.score)[0] || null;
+    }
+
+    function mobileActionCard(type, row, fallback) {
+      const side = type === "CE" ? "ce" : "pe";
+      const title = type + " Buy";
+      if (!row) {
+        return `<article class="mobile-action-card ${side}">
+          <h3>${title}<span class="badge neutral">Wait</span></h3>
+          <strong>-</strong>
+          <small>${escapeHtml(fallback)} not active above current filter.</small>
+        </article>`;
+      }
+      const cfg = signalConfig(row.build.label);
+      return `<article class="mobile-action-card ${side}">
+        <h3>${title}<span class="badge ${cfg.biasClass}">${escapeHtml(cfg.bias)}</span></h3>
+        <strong>${fmt(row.strike)}</strong>
+        <small>Score ${fmt(row.score, 0)} / LTP ${fmt(row.ltp, 2)} / Chg OI ${fmtCompact(row.changeOI)}</small>
+        <div class="meter"><span style="width:${clamp(row.score, 3, 100)}%"></span></div>
+      </article>`;
     }
 
     function renderScannerTable() {
