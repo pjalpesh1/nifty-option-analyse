@@ -1,0 +1,3077 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NIFTY Option Analyse Pro</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --surface: #ffffff;
+      --surface-soft: #f9fafb;
+      --ink: #141820;
+      --muted: #657080;
+      --line: #dce2ea;
+      --line-strong: #c7d0dc;
+      --green: #0b7a45;
+      --green-soft: #e7f5ee;
+      --ce-bg: #eefaf4;
+      --ce-head: #dcf3e8;
+      --red: #b3262e;
+      --red-soft: #fdebec;
+      --pe-bg: #fff0f1;
+      --pe-head: #fbdfe2;
+      --amber: #9b6500;
+      --amber-soft: #fff4d8;
+      --teal: #00788b;
+      --teal-soft: #e3f5f8;
+      --violet: #5c4da8;
+      --violet-soft: #f0eefb;
+      --shadow: 0 12px 30px rgba(20, 24, 32, 0.08);
+      --radius: 8px;
+      --radius-sm: 6px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .topbar-inner {
+      width: min(1540px, calc(100% - 28px));
+      margin: 0 auto;
+      min-height: 72px;
+      display: grid;
+      grid-template-columns: minmax(250px, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #0d8d6f, #236cc7);
+      color: white;
+      font-weight: 800;
+      box-shadow: var(--shadow);
+      flex: 0 0 auto;
+    }
+
+    .brand-title {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .brand-title h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .market-strip {
+      display: grid;
+      grid-template-columns: repeat(4, auto);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .market-pill {
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      min-width: 112px;
+    }
+
+    .market-pill b {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .market-pill span {
+      display: block;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .toolbar {
+      background: #eef2f6;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .toolbar-inner {
+      width: min(1540px, calc(100% - 28px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: end;
+      padding: 12px 0;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 170px 260px 170px 150px 170px minmax(180px, 1fr);
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .field label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 750;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      color: var(--ink);
+      min-height: 38px;
+      padding: 8px 10px;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 220px;
+      resize: vertical;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(0, 120, 139, 0.13);
+    }
+
+    .range-row {
+      display: grid;
+      grid-template-columns: 1fr 42px;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      padding: 0 9px;
+    }
+
+    .range-row input {
+      border: 0;
+      padding: 0;
+      min-height: 0;
+      box-shadow: none;
+    }
+
+    .range-row output {
+      text-align: right;
+      font-weight: 750;
+      color: var(--teal);
+      font-size: 13px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--surface);
+      min-height: 38px;
+    }
+
+    .segmented button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 750;
+      padding: 8px 9px;
+      min-width: 0;
+    }
+
+    .segmented button + button {
+      border-left: 1px solid var(--line);
+    }
+
+    .segmented button.active {
+      background: var(--ink);
+      color: white;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 38px;
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-weight: 750;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: white;
+    }
+
+    .btn.live.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: white;
+    }
+
+    .btn.alert-on {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: white;
+    }
+
+    .auto-countdown {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line-strong);
+      background: var(--surface-soft);
+      color: var(--muted);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .auto-countdown.live {
+      color: var(--green);
+      background: var(--green-soft);
+      border-color: #a8d8c1;
+    }
+
+    .auto-countdown.error {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: #f3b6bc;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn:hover {
+      border-color: #9eaabc;
+    }
+
+    .btn.primary:hover {
+      background: #222936;
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      display: inline-block;
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .icon.refresh::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+    }
+
+    .icon.refresh::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 2px;
+      border-left: 6px solid currentColor;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      transform: rotate(20deg);
+    }
+
+    .icon.upload::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 2px;
+      width: 2px;
+      height: 10px;
+      background: currentColor;
+    }
+
+    .icon.upload::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 2px;
+      width: 8px;
+      height: 8px;
+      border-left: 2px solid currentColor;
+      border-top: 2px solid currentColor;
+      transform: rotate(45deg);
+    }
+
+    .icon.play::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 2px;
+      border-left: 10px solid currentColor;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+    }
+
+    .icon.clock::before {
+      content: "";
+      position: absolute;
+      inset: 2px;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+    }
+
+    .icon.clock::after {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 4px;
+      width: 5px;
+      height: 6px;
+      border-left: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform-origin: left bottom;
+    }
+
+    .icon.bell::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 2px;
+      width: 8px;
+      height: 10px;
+      border: 2px solid currentColor;
+      border-bottom: 0;
+      border-radius: 8px 8px 2px 2px;
+    }
+
+    .icon.bell::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      bottom: 2px;
+      width: 12px;
+      height: 2px;
+      background: currentColor;
+      box-shadow: 5px 3px 0 -1px currentColor;
+    }
+
+    .icon.copy::before,
+    .icon.copy::after {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border: 2px solid currentColor;
+      border-radius: 2px;
+    }
+
+    .icon.copy::before {
+      left: 2px;
+      top: 4px;
+      opacity: 0.65;
+    }
+
+    .icon.copy::after {
+      left: 5px;
+      top: 1px;
+      background: var(--surface);
+    }
+
+    .tabs {
+      width: min(1540px, calc(100% - 28px));
+      margin: 14px auto 0;
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+      overflow: auto;
+    }
+
+    .tab {
+      border: 1px solid transparent;
+      border-bottom: 0;
+      background: transparent;
+      color: var(--muted);
+      min-height: 42px;
+      padding: 10px 14px;
+      font-weight: 800;
+      border-top-left-radius: var(--radius-sm);
+      border-top-right-radius: var(--radius-sm);
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      background: var(--surface);
+      border-color: var(--line);
+      color: var(--ink);
+      transform: translateY(1px);
+    }
+
+    main {
+      width: min(1540px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 14px 0 34px;
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 13px;
+      box-shadow: 0 1px 0 rgba(20, 24, 32, 0.02);
+      min-height: 104px;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+    }
+
+    .metric-card label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .metric-card strong {
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .metric-card small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .metric-card.good {
+      border-color: #a8d8c1;
+      background: var(--green-soft);
+    }
+
+    .metric-card.bad {
+      border-color: #f3b6bc;
+      background: var(--red-soft);
+    }
+
+    .metric-card.watch {
+      border-color: #f0cf82;
+      background: var(--amber-soft);
+    }
+
+    .metric-card.info {
+      border-color: #a6dbe4;
+      background: var(--teal-soft);
+    }
+
+    .scanner-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(360px, 0.8fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 0 rgba(20, 24, 32, 0.02);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-height: 54px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .panel-head span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .signal-band {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .signal-tile {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      min-height: 110px;
+      display: grid;
+      gap: 8px;
+      align-content: space-between;
+      background: var(--surface-soft);
+    }
+
+    .signal-tile b {
+      font-size: 13px;
+    }
+
+    .signal-tile strong {
+      font-size: 22px;
+      line-height: 1.1;
+    }
+
+    .signal-tile small {
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .signal-cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .signal-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      min-height: 210px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      background: var(--surface);
+    }
+
+    .signal-card.ce {
+      background: var(--ce-bg);
+      border-color: #a8d8c1;
+    }
+
+    .signal-card.pe {
+      background: var(--pe-bg);
+      border-color: #f3b6bc;
+    }
+
+    .signal-card h3 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .signal-card strong {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .signal-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .reason-list {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .reason-list li {
+      border: 1px solid rgba(20, 24, 32, 0.08);
+      background: rgba(255, 255, 255, 0.72);
+      border-radius: var(--radius-sm);
+      padding: 7px 8px;
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .signal-tile.good {
+      background: var(--green-soft);
+      border-color: #a8d8c1;
+    }
+
+    .signal-tile.bad {
+      background: var(--red-soft);
+      border-color: #f3b6bc;
+    }
+
+    .signal-tile.watch {
+      background: var(--amber-soft);
+      border-color: #f0cf82;
+    }
+
+    .meter {
+      height: 9px;
+      background: #e7ecf2;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: 50%;
+      background: linear-gradient(90deg, var(--red), var(--amber), var(--green));
+      border-radius: inherit;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .badge.good {
+      color: var(--green);
+      background: var(--green-soft);
+      border-color: #a8d8c1;
+    }
+
+    .badge.bad {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: #f3b6bc;
+    }
+
+    .badge.watch {
+      color: var(--amber);
+      background: var(--amber-soft);
+      border-color: #f0cf82;
+    }
+
+    .badge.info {
+      color: var(--teal);
+      background: var(--teal-soft);
+      border-color: #a6dbe4;
+    }
+
+    .badge.neutral {
+      color: var(--muted);
+      background: #f0f3f6;
+      border-color: var(--line);
+    }
+
+    .badge.ce {
+      color: var(--green);
+      background: var(--ce-bg);
+      border-color: #a8d8c1;
+    }
+
+    .badge.pe {
+      color: var(--red);
+      background: var(--pe-bg);
+      border-color: #f3b6bc;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-width: 100%;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: right;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      font-weight: 850;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    td:first-child,
+    th:first-child,
+    td.left,
+    th.left {
+      text-align: left;
+    }
+
+    tr:hover td {
+      background: #fbfcfd;
+    }
+
+    tr.ce-row td,
+    td.ce-cell,
+    th.ce-cell {
+      background: var(--ce-bg);
+    }
+
+    tr.pe-row td,
+    td.pe-cell,
+    th.pe-cell {
+      background: var(--pe-bg);
+    }
+
+    tr.ce-row:hover td,
+    td.ce-cell:hover {
+      background: #e1f6ec;
+    }
+
+    tr.pe-row:hover td,
+    td.pe-cell:hover {
+      background: #ffe4e7;
+    }
+
+    .chain-table {
+      min-width: 1180px;
+    }
+
+    .chain-table thead tr:first-child th:first-child {
+      background: var(--ce-head);
+      color: var(--green);
+    }
+
+    .chain-table thead tr:first-child th:last-child {
+      background: var(--pe-head);
+      color: var(--red);
+    }
+
+    .chain-table thead tr:nth-child(2) th:nth-child(-n + 9) {
+      background: var(--ce-head);
+      color: var(--green);
+    }
+
+    .chain-table thead tr:nth-child(2) th:nth-child(n + 11) {
+      background: var(--pe-head);
+      color: var(--red);
+    }
+
+    .chain-table tbody td:nth-child(-n + 9) {
+      background: var(--ce-bg);
+    }
+
+    .chain-table tbody td:nth-child(n + 11) {
+      background: var(--pe-bg);
+    }
+
+    .chain-table tbody tr:hover td:nth-child(-n + 9) {
+      background: #e1f6ec;
+    }
+
+    .chain-table tbody tr:hover td:nth-child(n + 11) {
+      background: #ffe4e7;
+    }
+
+    .chain-table th.strike,
+    .chain-table td.strike {
+      text-align: center;
+      background: #ffffff;
+      font-weight: 850;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      box-shadow: 1px 0 0 var(--line);
+    }
+
+    .chain-table th.strike {
+      z-index: 3;
+    }
+
+    .atm-row td {
+      background: #fffaf0;
+    }
+
+    .chain-table tbody tr.atm-row td:nth-child(-n + 9) {
+      background: #e5f8ef;
+    }
+
+    .chain-table tbody tr.atm-row td:nth-child(n + 11) {
+      background: #ffe8eb;
+    }
+
+    .chain-table tbody tr.atm-row td.strike {
+      background: #ffffff;
+    }
+
+    #buildupTable th:nth-child(n + 2):nth-child(-n + 5),
+    #buildupTable td:nth-child(n + 2):nth-child(-n + 5) {
+      background: var(--ce-bg);
+      color: var(--green);
+    }
+
+    #buildupTable th:nth-child(n + 6):nth-child(-n + 9),
+    #buildupTable td:nth-child(n + 6):nth-child(-n + 9) {
+      background: var(--pe-bg);
+      color: var(--red);
+    }
+
+    #signalReasonTable {
+      min-width: 1320px;
+    }
+
+    #signalReasonTable th:last-child,
+    #signalReasonTable td:last-child {
+      min-width: 380px;
+      max-width: 520px;
+      white-space: normal;
+      line-height: 1.35;
+    }
+
+    .num-pos {
+      color: var(--green);
+      font-weight: 750;
+    }
+
+    .num-neg {
+      color: var(--red);
+      font-weight: 750;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mini-stat {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      min-height: 76px;
+      background: var(--surface-soft);
+    }
+
+    .mini-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 800;
+      margin-bottom: 5px;
+    }
+
+    .mini-stat b {
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .guard-list,
+    .history-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .guard-item,
+    .history-item {
+      display: grid;
+      grid-template-columns: minmax(92px, 0.45fr) minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-soft);
+      padding: 9px;
+      min-height: 42px;
+    }
+
+    .guard-item span,
+    .history-item span {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 850;
+    }
+
+    .guard-item b,
+    .history-item b {
+      font-size: 13px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    .guard-item.good,
+    .history-item.good {
+      background: var(--green-soft);
+      border-color: #a8d8c1;
+    }
+
+    .guard-item.bad,
+    .history-item.bad {
+      background: var(--red-soft);
+      border-color: #f3b6bc;
+    }
+
+    .guard-item.watch,
+    .history-item.watch {
+      background: var(--amber-soft);
+      border-color: #f0cf82;
+    }
+
+    .guard-item.info,
+    .history-item.info {
+      background: var(--teal-soft);
+      border-color: #a6dbe4;
+    }
+
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .strategy-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      padding: 14px;
+      min-height: 250px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .strategy-card h3 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .strategy-card .setup {
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .legs {
+      display: grid;
+      gap: 6px;
+    }
+
+    .leg {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 7px;
+      background: var(--surface-soft);
+      font-size: 12px;
+    }
+
+    .leg b {
+      text-align: center;
+      border-radius: 999px;
+      padding: 4px 6px;
+      background: #eef2f6;
+      color: var(--ink);
+    }
+
+    .leg.buy b {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .leg.sell b {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .leg.ce {
+      background: var(--ce-bg);
+      border-color: #a8d8c1;
+    }
+
+    .leg.pe {
+      background: var(--pe-bg);
+      border-color: #f3b6bc;
+    }
+
+    .data-layout {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.8fr) minmax(0, 1.2fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .sample-format {
+      background: #111820;
+      color: #dce5ef;
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      overflow: auto;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    .status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .empty {
+      border: 1px dashed var(--line-strong);
+      background: var(--surface-soft);
+      border-radius: var(--radius);
+      min-height: 140px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 20px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1280px) {
+      .summary-grid {
+        grid-template-columns: repeat(3, minmax(150px, 1fr));
+      }
+
+      .control-grid {
+        grid-template-columns: repeat(3, minmax(150px, 1fr));
+      }
+
+      .scanner-layout,
+      .data-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .signal-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .strategy-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 880px) {
+      .topbar-inner,
+      .toolbar-inner {
+        grid-template-columns: 1fr;
+      }
+
+      .market-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .toolbar-inner {
+        align-items: stretch;
+      }
+
+      .actions {
+        justify-content: stretch;
+      }
+
+      .actions .btn {
+        flex: 1 1 130px;
+      }
+
+      .control-grid,
+      .summary-grid,
+      .two-col,
+      .signal-band,
+      .signal-cards,
+      .mini-grid,
+      .strategy-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .topbar-inner,
+      .toolbar-inner,
+      .tabs,
+      main {
+        width: min(100% - 18px, 1540px);
+      }
+
+      .brand-title h1 {
+        white-space: normal;
+      }
+
+      .market-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .segmented button,
+      .tab,
+      .btn {
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">NF</div>
+          <div class="brand-title">
+            <h1>NIFTY Option Analyse Pro</h1>
+            <span id="dataStatus">Demo scanner loaded</span>
+          </div>
+        </div>
+        <div class="market-strip" aria-label="Market snapshot">
+          <div class="market-pill">
+            <b>Spot</b>
+            <span id="snapSpot">-</span>
+          </div>
+          <div class="market-pill">
+            <b>Expiry</b>
+            <span id="snapExpiry">-</span>
+          </div>
+          <div class="market-pill">
+            <b>Signal</b>
+            <span id="snapSignal">-</span>
+          </div>
+          <div class="market-pill">
+            <b>Updated</b>
+            <span id="snapUpdated">-</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="toolbar">
+      <div class="toolbar-inner">
+        <div class="control-grid">
+          <div class="field">
+            <label for="spotInput">NIFTY Spot</label>
+            <input id="spotInput" type="number" inputmode="decimal" step="0.05" value="24085">
+          </div>
+          <div class="field">
+            <label>Expiry Mode</label>
+            <div class="segmented" role="group" aria-label="Expiry mode">
+              <button type="button" class="active" data-mode="weekly">Weekly</button>
+              <button type="button" data-mode="monthly">Monthly</button>
+              <button type="button" data-mode="combined">Combined</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="expirySelect">Expiry</label>
+            <select id="expirySelect"></select>
+          </div>
+          <div class="field">
+            <label for="rangeInput">ATM Range</label>
+            <div class="range-row">
+              <input id="rangeInput" type="range" min="2" max="12" value="6">
+              <output id="rangeOutput">6</output>
+            </div>
+          </div>
+          <div class="field">
+            <label for="scoreInput">Minimum Score</label>
+            <div class="range-row">
+              <input id="scoreInput" type="range" min="35" max="85" value="55">
+              <output id="scoreOutput">55</output>
+            </div>
+          </div>
+          <div class="field">
+            <label for="searchInput">Strike / Signal Filter</label>
+            <input id="searchInput" type="search" placeholder="ATM, CE buy, PE buy, 24100">
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" id="demoBtn"><span class="icon refresh"></span>Demo</button>
+          <button type="button" class="btn" id="uploadBtn"><span class="icon upload"></span>Upload</button>
+          <button type="button" class="btn primary" id="analyseBtn"><span class="icon play"></span>Analyse</button>
+          <button type="button" class="btn live" id="autoToggleBtn"><span class="icon clock"></span><span id="autoButtonText">Auto Start</span></button>
+          <button type="button" class="btn" id="alertToggleBtn"><span class="icon bell"></span><span id="alertButtonText">Alerts Off</span></button>
+          <span class="auto-countdown" id="autoCountdown">Auto off</span>
+          <input id="fileInput" class="hidden" type="file" accept=".json,.csv,.txt">
+        </div>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Dashboard views">
+      <button type="button" class="tab active" data-view="scannerView">Scanner</button>
+      <button type="button" class="tab" data-view="signalView">Signals</button>
+      <button type="button" class="tab" data-view="chainView">Option Chain</button>
+      <button type="button" class="tab" data-view="strategyView">Strategy</button>
+      <button type="button" class="tab" data-view="dataView">Data</button>
+    </nav>
+
+    <main>
+      <section class="view active" id="scannerView">
+        <div class="summary-grid" id="summaryGrid"></div>
+        <div class="scanner-layout">
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Scanner Signals</h2>
+                <span id="scannerSubtitle">-</span>
+              </div>
+              <div class="panel-body">
+                <div class="table-wrap">
+                  <table id="scannerTable">
+                    <thead>
+                      <tr>
+                        <th class="left">Setup</th>
+                        <th>Expiry</th>
+                        <th>Strike</th>
+                        <th>Type</th>
+                        <th>Build-up</th>
+                        <th>Score</th>
+                        <th>OI</th>
+                        <th>Chg OI</th>
+                        <th>LTP</th>
+                        <th>IV</th>
+                        <th>Delta</th>
+                        <th>Gamma</th>
+                        <th>Theta</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>OI Build-up Matrix</h2>
+                <span>CE and PE pressure</span>
+              </div>
+              <div class="panel-body">
+                <div class="table-wrap">
+                  <table id="buildupTable">
+                    <thead>
+                      <tr>
+                        <th class="left">Expiry</th>
+                        <th>CE Buy</th>
+                        <th>CE Sell</th>
+                        <th>CE Cover</th>
+                        <th>CE Unwind</th>
+                        <th>PE Buy</th>
+                        <th>PE Sell</th>
+                        <th>PE Cover</th>
+                        <th>PE Unwind</th>
+                        <th>PCR OI</th>
+                        <th>PCR Chg OI</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="stack">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Directional Engine</h2>
+                <span id="engineExpiry">-</span>
+              </div>
+              <div class="panel-body stack">
+                <div class="signal-band">
+                  <div class="signal-tile good" id="bullTile">
+                    <b>Bullish Pressure</b>
+                    <strong>-</strong>
+                    <div class="meter"><span></span></div>
+                    <small>-</small>
+                  </div>
+                  <div class="signal-tile bad" id="bearTile">
+                    <b>Bearish Pressure</b>
+                    <strong>-</strong>
+                    <div class="meter"><span></span></div>
+                    <small>-</small>
+                  </div>
+                </div>
+                <div class="signal-tile watch" id="premiumTile">
+                  <b>Premium Bias</b>
+                  <strong>-</strong>
+                  <div class="meter"><span></span></div>
+                  <small>-</small>
+                </div>
+                <div class="mini-grid" id="engineStats"></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Levels</h2>
+                <span>Max OI, max pain and range</span>
+              </div>
+              <div class="panel-body">
+                <div class="mini-grid" id="levelStats"></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Trade Guard</h2>
+                <span id="guardSubtitle">Risk filter</span>
+              </div>
+              <div class="panel-body">
+                <div class="guard-list" id="tradeGuard"></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Signal History</h2>
+                <span>Auto refresh changes</span>
+              </div>
+              <div class="panel-body">
+                <div class="history-list" id="signalHistory"></div>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="signalView">
+        <div class="summary-grid" id="signalSummary"></div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>CE / PE Buy Signals</h2>
+            <span id="signalSubtitle">Buy reason scanner</span>
+          </div>
+          <div class="panel-body stack">
+            <div class="signal-cards" id="signalCards"></div>
+            <div class="table-wrap">
+              <table id="signalReasonTable">
+                <thead>
+                  <tr>
+                    <th class="left">Signal</th>
+                    <th>Bias</th>
+                    <th>Expiry</th>
+                    <th>Strike</th>
+                    <th>Score</th>
+                    <th>OI</th>
+                    <th>Chg OI</th>
+                    <th>LTP</th>
+                    <th>Price Chg</th>
+                    <th>IV</th>
+                    <th>Delta</th>
+                    <th>Gamma</th>
+                    <th>Theta</th>
+                    <th class="left">Reason</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="chainView">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Option Chain</h2>
+            <span id="chainSubtitle">-</span>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap">
+              <table class="chain-table" id="chainTable">
+                <thead>
+                  <tr>
+                    <th colspan="9">Calls</th>
+                    <th class="strike">Strike</th>
+                    <th colspan="9">Puts</th>
+                  </tr>
+                  <tr>
+                    <th>Signal</th>
+                    <th>Score</th>
+                    <th>OI</th>
+                    <th>Chg OI</th>
+                    <th>LTP</th>
+                    <th>IV</th>
+                    <th>Delta</th>
+                    <th>Gamma</th>
+                    <th>Theta</th>
+                    <th class="strike">Price</th>
+                    <th>Theta</th>
+                    <th>Gamma</th>
+                    <th>Delta</th>
+                    <th>IV</th>
+                    <th>LTP</th>
+                    <th>Chg OI</th>
+                    <th>OI</th>
+                    <th>Score</th>
+                    <th>Signal</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="strategyView">
+        <div class="summary-grid" id="strategySummary"></div>
+        <div class="strategy-grid" id="strategyGrid"></div>
+      </section>
+
+      <section class="view" id="dataView">
+        <div class="data-layout">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Import</h2>
+              <span>JSON or CSV</span>
+            </div>
+            <div class="panel-body stack">
+              <div class="field">
+                <label for="sourceUrlInput">Live JSON / CSV URL</label>
+                <input id="sourceUrlInput" type="url" placeholder="http://localhost:5000/option-chain.json">
+              </div>
+              <div class="actions">
+                <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
+              </div>
+              <div class="field">
+                <label for="pasteInput">Paste Data</label>
+                <textarea id="pasteInput" spellcheck="false"></textarea>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn" id="clearPasteBtn">Clear</button>
+                <button type="button" class="btn primary" id="pasteAnalyseBtn"><span class="icon play"></span>Load Paste</button>
+              </div>
+              <div class="status" id="importStatus"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Accepted Columns</h2>
+              <span>NSE JSON or flat CSV</span>
+            </div>
+            <div class="panel-body stack">
+              <pre class="sample-format">expiryDate,strikePrice,optionType,openInterest,changeinOpenInterest,lastPrice,change,impliedVolatility,delta,gamma,theta,totalTradedVolume
+27-Jun-2026,24100,CE,125430,8400,142.5,18.2,13.8,0.54,0.0019,-8.2,25560
+27-Jun-2026,24100,PE,113870,-2200,91.7,-11.5,14.1,-0.46,0.0018,-7.6,21980</pre>
+              <div class="table-wrap">
+                <table id="dataPreviewTable">
+                  <thead>
+                    <tr>
+                      <th class="left">Expiry</th>
+                      <th>Strike</th>
+                      <th>Type</th>
+                      <th>OI</th>
+                      <th>Chg OI</th>
+                      <th>LTP</th>
+                      <th>IV</th>
+                      <th>Delta</th>
+                      <th>Gamma</th>
+                      <th>Theta</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const state = {
+      contracts: [],
+      mode: "weekly",
+      selectedExpiry: "auto",
+      analysis: [],
+      activeAnalysis: null,
+      sourceName: "Demo",
+      lastUpdated: null,
+      dataSource: { kind: "demo", label: "Demo" },
+      autoEnabled: false,
+      autoTimerId: null,
+      autoIntervalMs: 60000,
+      nextUpdateAt: null,
+      updateInFlight: false,
+      lastAutoError: "",
+      alertsEnabled: false,
+      lastSignalKey: "",
+      signalHistory: []
+    };
+
+    const els = {
+      spotInput: document.getElementById("spotInput"),
+      expirySelect: document.getElementById("expirySelect"),
+      rangeInput: document.getElementById("rangeInput"),
+      rangeOutput: document.getElementById("rangeOutput"),
+      scoreInput: document.getElementById("scoreInput"),
+      scoreOutput: document.getElementById("scoreOutput"),
+      searchInput: document.getElementById("searchInput"),
+      summaryGrid: document.getElementById("summaryGrid"),
+      signalSummary: document.getElementById("signalSummary"),
+      signalCards: document.getElementById("signalCards"),
+      signalSubtitle: document.getElementById("signalSubtitle"),
+      signalReasonTable: document.querySelector("#signalReasonTable tbody"),
+      scannerTable: document.querySelector("#scannerTable tbody"),
+      buildupTable: document.querySelector("#buildupTable tbody"),
+      chainTable: document.querySelector("#chainTable tbody"),
+      strategyGrid: document.getElementById("strategyGrid"),
+      strategySummary: document.getElementById("strategySummary"),
+      dataPreviewTable: document.querySelector("#dataPreviewTable tbody"),
+      pasteInput: document.getElementById("pasteInput"),
+      sourceUrlInput: document.getElementById("sourceUrlInput"),
+      importStatus: document.getElementById("importStatus"),
+      dataStatus: document.getElementById("dataStatus"),
+      snapSpot: document.getElementById("snapSpot"),
+      snapExpiry: document.getElementById("snapExpiry"),
+      snapSignal: document.getElementById("snapSignal"),
+      snapUpdated: document.getElementById("snapUpdated"),
+      scannerSubtitle: document.getElementById("scannerSubtitle"),
+      chainSubtitle: document.getElementById("chainSubtitle"),
+      engineExpiry: document.getElementById("engineExpiry"),
+      bullTile: document.getElementById("bullTile"),
+      bearTile: document.getElementById("bearTile"),
+      premiumTile: document.getElementById("premiumTile"),
+      engineStats: document.getElementById("engineStats"),
+      levelStats: document.getElementById("levelStats"),
+      tradeGuard: document.getElementById("tradeGuard"),
+      guardSubtitle: document.getElementById("guardSubtitle"),
+      signalHistory: document.getElementById("signalHistory"),
+      autoToggleBtn: document.getElementById("autoToggleBtn"),
+      autoButtonText: document.getElementById("autoButtonText"),
+      autoCountdown: document.getElementById("autoCountdown"),
+      alertToggleBtn: document.getElementById("alertToggleBtn"),
+      alertButtonText: document.getElementById("alertButtonText")
+    };
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function asNumber(value, fallback = 0) {
+      if (value === null || value === undefined || value === "") return fallback;
+      const cleaned = String(value).replace(/,/g, "").trim();
+      const parsed = Number(cleaned);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function fmt(value, digits = 0) {
+      if (!Number.isFinite(value)) return "-";
+      return value.toLocaleString("en-IN", {
+        maximumFractionDigits: digits,
+        minimumFractionDigits: digits
+      });
+    }
+
+    function fmtCompact(value) {
+      if (!Number.isFinite(value)) return "-";
+      const abs = Math.abs(value);
+      const sign = value < 0 ? "-" : "";
+      if (abs >= 10000000) return sign + fmt(abs / 10000000, 2) + "Cr";
+      if (abs >= 100000) return sign + fmt(abs / 100000, 2) + "L";
+      if (abs >= 1000) return sign + fmt(abs / 1000, 1) + "K";
+      return sign + fmt(abs, 0);
+    }
+
+    function pct(value, digits = 1) {
+      if (!Number.isFinite(value)) return "-";
+      return fmt(value, digits) + "%";
+    }
+
+    function normDate(input) {
+      if (!input) return "";
+      if (input instanceof Date && !Number.isNaN(input.getTime())) {
+        return input.toISOString().slice(0, 10);
+      }
+      const raw = String(input).trim();
+      if (!raw) return "";
+      const direct = new Date(raw);
+      if (!Number.isNaN(direct.getTime())) return direct.toISOString().slice(0, 10);
+      const months = {
+        jan: "01",
+        feb: "02",
+        mar: "03",
+        apr: "04",
+        may: "05",
+        jun: "06",
+        jul: "07",
+        aug: "08",
+        sep: "09",
+        oct: "10",
+        nov: "11",
+        dec: "12"
+      };
+      const m = raw.match(/^(\d{1,2})[-\s/]([A-Za-z]{3,})[-\s/](\d{2,4})$/);
+      if (m) {
+        const year = m[3].length === 2 ? "20" + m[3] : m[3];
+        const month = months[m[2].slice(0, 3).toLowerCase()] || "01";
+        return year + "-" + month + "-" + String(m[1]).padStart(2, "0");
+      }
+      const dmy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+      if (dmy) {
+        const year = dmy[3].length === 2 ? "20" + dmy[3] : dmy[3];
+        return year + "-" + String(dmy[2]).padStart(2, "0") + "-" + String(dmy[1]).padStart(2, "0");
+      }
+      return raw;
+    }
+
+    function prettyDate(value) {
+      const iso = normDate(value);
+      if (!iso) return "-";
+      const date = new Date(iso + "T00:00:00");
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    }
+
+    function expiryLabel(contractOrAnalysis) {
+      if (!contractOrAnalysis) return "-";
+      const type = contractOrAnalysis.expiryType === "monthly" ? "M" : "W";
+      return prettyDate(contractOrAnalysis.expiry) + " " + type;
+    }
+
+    function normalizeExpiryType(value) {
+      const text = String(value || "").trim().toLowerCase();
+      if (text.startsWith("m")) return "monthly";
+      if (text.startsWith("w")) return "weekly";
+      return "";
+    }
+
+    function isLikelyMonthlyExpiry(expiry) {
+      const date = new Date(normDate(expiry) + "T00:00:00");
+      if (Number.isNaN(date.getTime())) return false;
+      return date.getDate() >= 28;
+    }
+
+    function expiryTypeMap(contracts) {
+      const expiries = [...new Set(contracts.map(c => c.expiry).filter(Boolean))].sort();
+      const byMonth = new Map();
+      for (const expiry of expiries) {
+        const monthKey = expiry.slice(0, 7);
+        if (!byMonth.has(monthKey)) byMonth.set(monthKey, []);
+        byMonth.get(monthKey).push(expiry);
+      }
+      const monthly = new Set();
+      byMonth.forEach(list => {
+        if (list.length > 1) monthly.add(list[list.length - 1]);
+        else if (isLikelyMonthlyExpiry(list[0])) monthly.add(list[0]);
+      });
+      const map = new Map();
+      expiries.forEach(expiry => {
+        const explicit = contracts.map(c => c.expiry === expiry ? c.expiryType : "").find(Boolean);
+        map.set(expiry, explicit || (monthly.has(expiry) ? "monthly" : "weekly"));
+      });
+      return map;
+    }
+
+    function enrichContracts(contracts) {
+      const clean = contracts
+        .filter(c => c && (c.strike || c.strikePrice) && (c.type || c.optionType || c.instrumentType))
+        .map(c => ({
+          expiry: normDate(c.expiry || c.expiryDate),
+          strike: asNumber(c.strike || c.strikePrice),
+          type: String(c.type || c.optionType || c.instrumentType || "").toUpperCase().includes("PE") ? "PE" : "CE",
+          expiryType: normalizeExpiryType(c.expiryType || c.expiry_type || c.seriesType || c.series),
+          oi: asNumber(c.oi ?? c.openInterest),
+          changeOI: asNumber(c.changeOI ?? c.changeinOpenInterest ?? c.changeInOpenInterest),
+          ltp: asNumber(c.ltp ?? c.lastPrice),
+          priceChange: asNumber(c.priceChange ?? c.change),
+          iv: asNumber(c.iv ?? c.impliedVolatility),
+          delta: asNumber(c.delta),
+          gamma: asNumber(c.gamma),
+          theta: asNumber(c.theta),
+          volume: asNumber(c.volume ?? c.totalTradedVolume),
+          source: c.source || ""
+        }))
+        .filter(c => c.expiry && c.strike > 0 && (c.type === "CE" || c.type === "PE"));
+      const typeMap = expiryTypeMap(clean);
+      return clean.map(c => ({ ...c, expiryType: typeMap.get(c.expiry) || "weekly" }));
+    }
+
+    function getExpiries() {
+      return [...new Set(state.contracts.map(c => c.expiry))].sort();
+    }
+
+    function populateExpirySelect() {
+      const expiries = getExpiries();
+      const active = state.selectedExpiry;
+      els.expirySelect.innerHTML = "";
+      const auto = new Option("Auto", "auto");
+      els.expirySelect.appendChild(auto);
+      for (const expiry of expiries) {
+        const type = state.contracts.find(c => c.expiry === expiry)?.expiryType || "";
+        els.expirySelect.appendChild(new Option(prettyDate(expiry) + " - " + type, expiry));
+      }
+      els.expirySelect.value = expiries.includes(active) ? active : "auto";
+      state.selectedExpiry = els.expirySelect.value;
+    }
+
+    function buildDemoData() {
+      const weekly = "2026-06-25";
+      const monthly = "2026-06-30";
+      const spot = 24085;
+      const strikes = [];
+      for (let strike = 23400; strike <= 24800; strike += 50) strikes.push(strike);
+      const all = [];
+      for (const expiry of [weekly, monthly]) {
+        const days = expiry === weekly ? 7 : 12;
+        const isMonthly = expiry === monthly;
+        const oiFactor = isMonthly ? 1.28 : 0.92;
+        const chgFactor = isMonthly ? 0.68 : 1.18;
+        const volumeFactor = isMonthly ? 0.78 : 1.12;
+        const deltaShift = isMonthly ? -0.018 : 0.012;
+        const gammaFactor = isMonthly ? 0.82 : 1.08;
+        for (const strike of strikes) {
+          const distance = Math.abs(strike - spot);
+          const atmWeight = Math.max(0.18, 1 - distance / 950);
+          const above = strike > spot;
+          const below = strike < spot;
+          const callIntrinsic = Math.max(0, spot - strike);
+          const putIntrinsic = Math.max(0, strike - spot);
+          const baseTime = Math.max(18, (expiry === weekly ? 95 : 142) * atmWeight);
+          const resistanceBoost = strike >= 24200 && strike <= 24500 ? 1.45 : 1;
+          const supportBoost = strike >= 23800 && strike <= 24100 ? 1.5 : 1;
+          const monthlyCeTilt = isMonthly && strike >= 24300 ? 1.16 : 1;
+          const monthlyPeTilt = isMonthly && strike <= 24100 ? 1.14 : 1;
+          const weeklyCeTilt = !isMonthly && strike >= 24100 && strike <= 24250 ? 1.12 : 1;
+          const weeklyPeTilt = !isMonthly && strike >= 23950 && strike <= 24100 ? 1.12 : 1;
+          const callOi = Math.round(((56000 + distance * 62) * atmWeight * resistanceBoost + (above ? 22000 : 0)) * oiFactor * monthlyCeTilt * weeklyCeTilt);
+          const putOi = Math.round(((52000 + distance * 58) * atmWeight * supportBoost + (below ? 23000 : 0)) * oiFactor * monthlyPeTilt * weeklyPeTilt);
+          let callChg = Math.round(((above ? 7800 : -1600) + (strike === 23750 ? 15500 : 0) - (strike < 23400 ? 2800 : 0)) * atmWeight * chgFactor * (isMonthly ? monthlyCeTilt : weeklyCeTilt));
+          let putChg = Math.round(((below ? 8200 : -1200) + (strike === 23400 ? 13200 : 0) - (strike > 23800 ? 2400 : 0)) * atmWeight * chgFactor * (isMonthly ? monthlyPeTilt : weeklyPeTilt));
+          const callLtp = Math.max(3.5, callIntrinsic + baseTime - distance * 0.052 + (above ? -12 : 0));
+          const putLtp = Math.max(3.5, putIntrinsic + baseTime - distance * 0.049 + (below ? -10 : 0));
+          let callChange = callChg > 0 && above ? -8 - distance / 220 : (below ? 10 - distance / 260 : 4);
+          let putChange = putChg > 0 && below ? -7 - distance / 230 : (above ? 9 - distance / 250 : -3);
+          if (!isMonthly && (strike === 24100 || strike === 24150)) {
+            callChg = Math.round((11200 + (strike === 24150 ? 2600 : 0)) * atmWeight);
+            callChange = 9.2 + atmWeight * 5.2;
+          }
+          if (!isMonthly && strike === 24050) {
+            putChg = Math.round(10800 * atmWeight);
+            putChange = 8.4 + atmWeight * 4.8;
+          }
+          if (isMonthly && (strike === 24150 || strike === 24200)) {
+            putChg = Math.round((9800 + (strike === 24200 ? 2200 : 0)) * atmWeight);
+            putChange = 8.1 + atmWeight * 4.4;
+          }
+          const callDelta = clamp(0.52 + (spot - strike) / 850 + deltaShift, 0.05, 0.95);
+          const putDelta = -clamp(0.48 + (strike - spot) / 850 - deltaShift, 0.05, 0.95);
+          const gamma = clamp((0.0024 * atmWeight + 0.00025) * gammaFactor, 0.00025, 0.0027);
+          const ivBase = expiry === weekly ? 13.2 : 14.4;
+          const callIv = ivBase + distance / 480 + (above ? 0.4 : -0.2);
+          const putIv = ivBase + distance / 500 + (below ? 0.5 : 0);
+          all.push({
+            expiry,
+            strike,
+            type: "CE",
+            oi: callOi,
+            changeOI: callChg,
+            ltp: Number(callLtp.toFixed(2)),
+            priceChange: Number(callChange.toFixed(2)),
+            iv: Number(callIv.toFixed(2)),
+            delta: Number(callDelta.toFixed(3)),
+            gamma: Number(gamma.toFixed(5)),
+            theta: Number((-(4.5 + atmWeight * 10 + days * 0.12)).toFixed(2)),
+            volume: Math.round((7000 + atmWeight * 26000 + Math.random() * 1200) * volumeFactor)
+          });
+          all.push({
+            expiry,
+            strike,
+            type: "PE",
+            oi: putOi,
+            changeOI: putChg,
+            ltp: Number(putLtp.toFixed(2)),
+            priceChange: Number(putChange.toFixed(2)),
+            iv: Number(putIv.toFixed(2)),
+            delta: Number(putDelta.toFixed(3)),
+            gamma: Number((gamma * 0.96).toFixed(5)),
+            theta: Number((-(4.3 + atmWeight * 9.5 + days * 0.11)).toFixed(2)),
+            volume: Math.round((7200 + atmWeight * 24500 + Math.random() * 1300) * volumeFactor)
+          });
+        }
+      }
+      return enrichContracts(all);
+    }
+
+    function parseNseJson(data) {
+      const records = data?.records?.data || data?.filtered?.data || data?.data || [];
+      const contracts = [];
+      if (!Array.isArray(records)) return contracts;
+      for (const row of records) {
+        for (const type of ["CE", "PE"]) {
+          if (!row[type]) continue;
+          const leg = row[type];
+          const greeks = leg.greeks || leg.greek || {};
+          contracts.push({
+            expiry: leg.expiryDate || row.expiryDate,
+            strike: leg.strikePrice || row.strikePrice,
+            type,
+            oi: leg.openInterest,
+            changeOI: leg.changeinOpenInterest ?? leg.changeInOpenInterest,
+            ltp: leg.lastPrice,
+            priceChange: leg.change,
+            iv: leg.impliedVolatility,
+            delta: leg.delta ?? greeks.delta,
+            gamma: leg.gamma ?? greeks.gamma,
+            theta: leg.theta ?? greeks.theta,
+            volume: leg.totalTradedVolume
+          });
+        }
+      }
+      return contracts;
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let current = [];
+      let cell = "";
+      let quoted = false;
+      for (let i = 0; i < text.length; i += 1) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (ch === '"' && quoted && next === '"') {
+          cell += '"';
+          i += 1;
+        } else if (ch === '"') {
+          quoted = !quoted;
+        } else if (ch === "," && !quoted) {
+          current.push(cell);
+          cell = "";
+        } else if ((ch === "\n" || ch === "\r") && !quoted) {
+          if (cell || current.length) {
+            current.push(cell);
+            rows.push(current);
+            current = [];
+            cell = "";
+          }
+          if (ch === "\r" && next === "\n") i += 1;
+        } else {
+          cell += ch;
+        }
+      }
+      if (cell || current.length) {
+        current.push(cell);
+        rows.push(current);
+      }
+      if (rows.length < 2) return [];
+      const headers = rows[0].map(h => h.trim().toLowerCase());
+      const get = (obj, names) => {
+        for (const name of names) {
+          const index = headers.indexOf(name.toLowerCase());
+          if (index >= 0) return obj[index];
+        }
+        return "";
+      };
+      return rows.slice(1).filter(row => row.some(Boolean)).map(row => ({
+        expiry: get(row, ["expirydate", "expiry", "expdate"]),
+        strike: get(row, ["strikeprice", "strike", "price"]),
+        type: get(row, ["optiontype", "type", "instrumenttype"]),
+        oi: get(row, ["openinterest", "oi"]),
+        changeOI: get(row, ["changeinopeninterest", "changeinoi", "changeoi", "chg oi"]),
+        ltp: get(row, ["lastprice", "ltp"]),
+        priceChange: get(row, ["change", "pricechange", "ltpchange"]),
+        iv: get(row, ["impliedvolatility", "iv"]),
+        delta: get(row, ["delta"]),
+        gamma: get(row, ["gamma"]),
+        theta: get(row, ["theta"]),
+        volume: get(row, ["totaltradedvolume", "volume"])
+      }));
+    }
+
+    function parseInput(text) {
+      const trimmed = text.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        const json = JSON.parse(trimmed);
+        if (Array.isArray(json)) return enrichContracts(json);
+        return enrichContracts(parseNseJson(json));
+      }
+      return enrichContracts(parseCsv(trimmed));
+    }
+
+    function setDataSource(source) {
+      state.dataSource = source;
+      updateAutoControls();
+    }
+
+    function dataSourceLabel() {
+      if (!state.dataSource) return "No source";
+      if (state.dataSource.kind === "url") return "URL";
+      if (state.dataSource.kind === "file") return state.dataSource.name || "Uploaded file";
+      if (state.dataSource.kind === "paste") return "Pasted data";
+      return "Demo";
+    }
+
+    function formatSeconds(ms) {
+      const seconds = Math.max(0, Math.ceil(ms / 1000));
+      const m = String(Math.floor(seconds / 60)).padStart(2, "0");
+      const s = String(seconds % 60).padStart(2, "0");
+      return m + ":" + s;
+    }
+
+    function updateAutoControls(message = "") {
+      const active = state.autoEnabled;
+      els.autoToggleBtn.classList.toggle("active", active);
+      els.autoCountdown.classList.toggle("live", active && !state.lastAutoError);
+      els.autoCountdown.classList.toggle("error", Boolean(state.lastAutoError));
+      if (!active) {
+        els.autoButtonText.textContent = "Auto Start";
+        els.autoCountdown.textContent = state.lastAutoError ? state.lastAutoError : "Auto off";
+        return;
+      }
+      if (state.updateInFlight) {
+        els.autoButtonText.textContent = "Updating...";
+        els.autoCountdown.textContent = "Source: " + dataSourceLabel();
+        return;
+      }
+      const remaining = state.nextUpdateAt ? formatSeconds(state.nextUpdateAt - Date.now()) : "01:00";
+      els.autoButtonText.textContent = "Stop " + remaining;
+      els.autoCountdown.textContent = message || "Next update " + remaining + " - " + dataSourceLabel();
+    }
+
+    function startAutoUpdate() {
+      state.autoEnabled = true;
+      state.lastAutoError = "";
+      if (!state.autoTimerId) {
+        state.autoTimerId = window.setInterval(tickAutoUpdate, 1000);
+      }
+      refreshLiveData();
+      updateAutoControls("Auto scanner running");
+    }
+
+    function stopAutoUpdate() {
+      state.autoEnabled = false;
+      state.nextUpdateAt = null;
+      if (state.autoTimerId) {
+        window.clearInterval(state.autoTimerId);
+        state.autoTimerId = null;
+      }
+      updateAutoControls();
+    }
+
+    function tickAutoUpdate() {
+      if (!state.autoEnabled) return;
+      if (!state.updateInFlight && state.nextUpdateAt && Date.now() >= state.nextUpdateAt) {
+        refreshLiveData();
+        return;
+      }
+      updateAutoControls();
+    }
+
+    async function refreshLiveData() {
+      if (state.updateInFlight) return;
+      state.updateInFlight = true;
+      state.lastAutoError = "";
+      updateAutoControls("Updating now");
+      try {
+        let contracts = [];
+        let sourceName = dataSourceLabel();
+        if (state.dataSource?.kind === "url") {
+          const response = await fetch(state.dataSource.url, { cache: "no-store" });
+          if (!response.ok) throw new Error("URL " + response.status);
+          contracts = parseInput(await response.text());
+          sourceName = state.dataSource.url;
+        } else if (state.dataSource?.kind === "file") {
+          contracts = parseInput(await state.dataSource.file.text());
+          sourceName = state.dataSource.name || "Uploaded file";
+        } else if (state.dataSource?.kind === "paste") {
+          contracts = parseInput(els.pasteInput.value);
+          sourceName = "Pasted data";
+        } else {
+          contracts = buildDemoData();
+          sourceName = "Demo live";
+        }
+        if (!contracts.length) throw new Error("No contracts loaded");
+        loadContracts(contracts, sourceName);
+        state.nextUpdateAt = Date.now() + state.autoIntervalMs;
+      } catch (error) {
+        state.lastAutoError = "Auto error: " + error.message;
+        els.importStatus.innerHTML = `<span class="badge bad">Auto error</span><span>${escapeHtml(error.message)}</span>`;
+        state.nextUpdateAt = Date.now() + state.autoIntervalMs;
+      } finally {
+        state.updateInFlight = false;
+        updateAutoControls();
+      }
+    }
+
+    async function loadUrlSource() {
+      const url = els.sourceUrlInput.value.trim();
+      if (!url) {
+        els.importStatus.innerHTML = `<span class="badge watch">URL needed</span><span>Enter a JSON or CSV feed URL first.</span>`;
+        return;
+      }
+      setDataSource({ kind: "url", url, label: "URL" });
+      await refreshLiveData();
+    }
+
+    function classifyBuildUp(contract) {
+      const oiUp = contract.changeOI > 0;
+      const oiDown = contract.changeOI < 0;
+      const priceUp = contract.priceChange > 0;
+      const priceDown = contract.priceChange < 0;
+      if (contract.type === "CE") {
+        if (oiUp && priceUp) return { label: "CE Buy", detail: "Long build-up", side: "bullish", className: "good", weight: 2 };
+        if (oiUp && priceDown) return { label: "CE Sell", detail: "Call writing", side: "bearish", className: "bad", weight: -2 };
+        if (oiDown && priceUp) return { label: "CE Cover", detail: "Short covering", side: "bullish", className: "good", weight: 1 };
+        if (oiDown && priceDown) return { label: "CE Unwind", detail: "Long unwind", side: "bearish", className: "watch", weight: -1 };
+      }
+      if (contract.type === "PE") {
+        if (oiUp && priceUp) return { label: "PE Buy", detail: "Put buying", side: "bearish", className: "bad", weight: -2 };
+        if (oiUp && priceDown) return { label: "PE Sell", detail: "Put writing", side: "bullish", className: "good", weight: 2 };
+        if (oiDown && priceUp) return { label: "PE Cover", detail: "Put cover", side: "bearish", className: "bad", weight: -1 };
+        if (oiDown && priceDown) return { label: "PE Unwind", detail: "Put unwind", side: "bullish", className: "watch", weight: 1 };
+      }
+      return { label: "Neutral", detail: "Flat", side: "neutral", className: "neutral", weight: 0 };
+    }
+
+    function inferGreeks(contract, spot, expiry) {
+      const distance = Math.abs(contract.strike - spot);
+      const atmWeight = clamp(1 - distance / 900, 0.05, 1);
+      const timeWeight = expiry?.expiryType === "monthly" ? 1.18 : 1;
+      let delta = contract.delta;
+      let gamma = contract.gamma;
+      let theta = contract.theta;
+      if (!delta) {
+        if (contract.type === "CE") delta = clamp(0.52 + (spot - contract.strike) / 850, 0.04, 0.96);
+        else delta = -clamp(0.48 + (contract.strike - spot) / 850, 0.04, 0.96);
+      }
+      if (!gamma) gamma = clamp(0.0022 * atmWeight / timeWeight + 0.0002, 0.0002, 0.0026);
+      if (!theta) theta = Number((-(4 + atmWeight * 10) / timeWeight).toFixed(2));
+      return { ...contract, delta, gamma, theta };
+    }
+
+    function contractsForMode() {
+      const mode = state.mode;
+      let list = state.contracts;
+      if (state.selectedExpiry !== "auto") list = list.filter(c => c.expiry === state.selectedExpiry);
+      if (state.selectedExpiry === "auto" && mode !== "combined") list = list.filter(c => c.expiryType === mode);
+      return list;
+    }
+
+    function groupByExpiry(contracts) {
+      const groups = new Map();
+      for (const contract of contracts) {
+        if (!groups.has(contract.expiry)) groups.set(contract.expiry, []);
+        groups.get(contract.expiry).push(contract);
+      }
+      return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([expiry, rows]) => ({ expiry, rows }));
+    }
+
+    function getPair(rows, strike) {
+      return {
+        CE: rows.find(c => c.strike === strike && c.type === "CE") || null,
+        PE: rows.find(c => c.strike === strike && c.type === "PE") || null
+      };
+    }
+
+    function calcMaxPain(rows, strikes) {
+      let bestStrike = strikes[0] || 0;
+      let lowestPain = Infinity;
+      for (const settlement of strikes) {
+        let pain = 0;
+        for (const contract of rows) {
+          if (contract.type === "CE") pain += contract.oi * Math.max(0, settlement - contract.strike);
+          else pain += contract.oi * Math.max(0, contract.strike - settlement);
+        }
+        if (pain < lowestPain) {
+          lowestPain = pain;
+          bestStrike = settlement;
+        }
+      }
+      return { strike: bestStrike, pain: lowestPain };
+    }
+
+    function analyseExpiry(expiry, rows, spot) {
+      const expiryType = rows[0]?.expiryType || "weekly";
+      const inferredRows = rows.map(c => inferGreeks(c, spot, { expiryType }));
+      const strikes = [...new Set(inferredRows.map(c => c.strike))].sort((a, b) => a - b);
+      const atmStrike = strikes.reduce((best, strike) => Math.abs(strike - spot) < Math.abs(best - spot) ? strike : best, strikes[0] || 0);
+      const range = asNumber(els.rangeInput.value, 6);
+      const atmIndex = strikes.indexOf(atmStrike);
+      const start = clamp(atmIndex - range, 0, strikes.length - 1);
+      const end = clamp(atmIndex + range, 0, strikes.length - 1);
+      const focusStrikes = new Set(strikes.slice(start, end + 1));
+      const focus = inferredRows.filter(c => focusStrikes.has(c.strike));
+      const ceRows = inferredRows.filter(c => c.type === "CE");
+      const peRows = inferredRows.filter(c => c.type === "PE");
+      const sum = (list, key) => list.reduce((total, item) => total + asNumber(item[key]), 0);
+      const ceOi = sum(ceRows, "oi");
+      const peOi = sum(peRows, "oi");
+      const ceChgOi = sum(ceRows, "changeOI");
+      const peChgOi = sum(peRows, "changeOI");
+      const totalVolume = sum(inferredRows, "volume");
+      const totalOi = ceOi + peOi;
+      const volumeOiRatio = totalOi ? totalVolume / totalOi : 0;
+      const liquidityScore = clamp(Math.log10(totalVolume + 10) * 12 + volumeOiRatio * 55, 0, 100);
+      const pcrOi = ceOi ? peOi / ceOi : 0;
+      const pcrChgOi = ceChgOi ? peChgOi / Math.abs(ceChgOi) : 0;
+      const maxCe = ceRows.reduce((best, c) => c.oi > (best?.oi || -Infinity) ? c : best, null);
+      const maxPe = peRows.reduce((best, c) => c.oi > (best?.oi || -Infinity) ? c : best, null);
+      const maxPain = calcMaxPain(inferredRows, strikes);
+      const atmPair = getPair(inferredRows, atmStrike);
+      const atmPremium = (atmPair.CE?.ltp || 0) + (atmPair.PE?.ltp || 0);
+      const avgIv = avg(focus.map(c => c.iv).filter(Boolean));
+      const atmIv = avg([atmPair.CE?.iv, atmPair.PE?.iv].filter(Boolean));
+      const ivSkew = (atmPair.PE?.iv || avgIv) - (atmPair.CE?.iv || avgIv);
+      const gammaAvg = avg(focus.map(c => c.gamma).filter(Boolean));
+      const thetaAvg = avg(focus.map(c => Math.abs(c.theta)).filter(Boolean));
+      const buildCounts = {};
+      for (const key of ["CE Buy", "CE Sell", "CE Cover", "CE Unwind", "PE Buy", "PE Sell", "PE Cover", "PE Unwind", "Neutral"]) {
+        buildCounts[key] = 0;
+      }
+      let pressure = 0;
+      let pressureAbs = 0;
+      for (const contract of focus) {
+        const build = classifyBuildUp(contract);
+        buildCounts[build.label] += Math.abs(contract.changeOI);
+        const importance = Math.log10(Math.abs(contract.changeOI) + 10) * (1 + Math.log10(contract.volume + 10) / 8);
+        pressure += build.weight * importance;
+        pressureAbs += Math.abs(build.weight * importance);
+      }
+      const pressureScore = pressureAbs ? pressure / pressureAbs : 0;
+      let bullish = 50 + pressureScore * 32;
+      bullish += clamp((pcrOi - 1) * 16, -12, 12);
+      bullish += clamp((pcrChgOi - 1) * 8, -10, 10);
+      bullish += ivSkew > 0.5 ? 3 : 0;
+      bullish = clamp(bullish, 0, 100);
+      const bearish = clamp(100 - bullish, 0, 100);
+      const premiumScore = clamp(45 + (avgIv - 13) * 3 + thetaAvg * 1.3 - gammaAvg * 2200, 0, 100);
+      const signal = finalSignal(bullish, bearish, premiumScore);
+      const rowsWithScores = inferredRows.map(contract => {
+        const build = classifyBuildUp(contract);
+        const distanceScore = 100 - clamp(Math.abs(contract.strike - spot) / 8, 0, 70);
+        const oiScore = clamp(Math.log10(Math.abs(contract.changeOI) + 10) * 16, 0, 100);
+        const volScore = clamp(Math.log10(contract.volume + 10) * 13, 0, 100);
+        const ivScore = clamp(contract.iv * 2.4, 0, 100);
+        const gammaScore = clamp(contract.gamma * 32000, 0, 100);
+        const thetaScore = clamp(Math.abs(contract.theta) * 5, 0, 100);
+        let greekFit = gammaScore * 0.18 + thetaScore * 0.12;
+        if (build.label.includes("Sell")) greekFit += ivScore * 0.18;
+        if (build.label.includes("Buy") || build.label.includes("Cover")) greekFit += clamp(100 - ivScore, 0, 100) * 0.1;
+        const score = clamp(oiScore * 0.32 + volScore * 0.16 + distanceScore * 0.18 + greekFit + 8, 0, 100);
+        return { ...contract, build, score };
+      });
+      return {
+        expiry,
+        expiryType,
+        rows: rowsWithScores,
+        strikes,
+        atmStrike,
+        focusStrikes,
+        ceOi,
+        peOi,
+        ceChgOi,
+        peChgOi,
+        totalVolume,
+        totalOi,
+        volumeOiRatio,
+        liquidityScore,
+        pcrOi,
+        pcrChgOi,
+        maxCe,
+        maxPe,
+        maxPain,
+        atmPair,
+        atmPremium,
+        expectedMovePct: spot ? (atmPremium / spot) * 100 : 0,
+        upperBreak: atmStrike + atmPremium,
+        lowerBreak: atmStrike - atmPremium,
+        avgIv,
+        atmIv,
+        ivSkew,
+        gammaAvg,
+        thetaAvg,
+        buildCounts,
+        bullish,
+        bearish,
+        premiumScore,
+        signal
+      };
+    }
+
+    function avg(values) {
+      const clean = values.filter(Number.isFinite);
+      return clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : 0;
+    }
+
+    function finalSignal(bullish, bearish, premiumScore) {
+      const diff = bullish - bearish;
+      if (diff >= 18) return { label: "Bullish", className: "good", text: "PE writing and CE buying alignment" };
+      if (diff <= -18) return { label: "Bearish", className: "bad", text: "CE writing and PE buying alignment" };
+      if (premiumScore >= 62) return { label: "Range / Sell Premium", className: "watch", text: "Theta and IV favor defined-risk selling" };
+      return { label: "Neutral", className: "neutral", text: "Wait for OI and premium alignment" };
+    }
+
+    function chooseActiveAnalysis() {
+      if (!state.analysis.length) return null;
+      if (state.selectedExpiry !== "auto") {
+        return state.analysis.find(a => a.expiry === state.selectedExpiry) || state.analysis[0];
+      }
+      if (state.mode === "monthly") return state.analysis.find(a => a.expiryType === "monthly") || state.analysis[0];
+      if (state.mode === "weekly") return state.analysis.find(a => a.expiryType === "weekly") || state.analysis[0];
+      return state.analysis[0];
+    }
+
+    function analyse() {
+      const spot = asNumber(els.spotInput.value, 0);
+      const groups = groupByExpiry(contractsForMode());
+      state.analysis = groups.map(group => analyseExpiry(group.expiry, group.rows, spot));
+      state.activeAnalysis = chooseActiveAnalysis();
+      recordSignalHistory();
+      renderAll();
+    }
+
+    function card(label, value, detail, className = "") {
+      return `<article class="metric-card ${className}">
+        <label>${escapeHtml(label)}</label>
+        <strong>${value}</strong>
+        <small>${escapeHtml(detail)}</small>
+      </article>`;
+    }
+
+    function renderSummary() {
+      const a = state.activeAnalysis;
+      if (!a) {
+        els.summaryGrid.innerHTML = `<div class="empty">No contracts loaded</div>`;
+        return;
+      }
+      els.summaryGrid.innerHTML = [
+        card("Primary Signal", a.signal.label, a.signal.text, a.signal.className),
+        card("PCR OI", fmt(a.pcrOi, 2), "PE OI / CE OI", a.pcrOi >= 1 ? "good" : "bad"),
+        card("PCR Chg OI", fmt(a.pcrChgOi, 2), "Fresh PE pressure vs CE pressure", a.pcrChgOi >= 1 ? "good" : "bad"),
+        card("ATM Premium", fmt(a.atmPremium, 2), "Combined CE + PE premium", "info"),
+        card("Max Pain", fmt(a.maxPain.strike), "Lowest option writer pain level", "watch"),
+        card("Liquidity", fmt(a.liquidityScore, 0), fmtCompact(a.totalVolume) + " contracts volume", a.liquidityScore >= 65 ? "good" : "watch"),
+        card("Average IV", pct(a.avgIv, 2), "ATM IV " + pct(a.atmIv, 2), a.avgIv > 18 ? "watch" : "info"),
+        card("Theta Load", fmt(a.thetaAvg, 2), "Average absolute theta near ATM", a.thetaAvg > 10 ? "watch" : "")
+      ].join("");
+    }
+
+    function renderScannerTable() {
+      const minScore = asNumber(els.scoreInput.value, 55);
+      const search = els.searchInput.value.trim().toLowerCase();
+      const rows = state.analysis.flatMap(a => a.rows.map(row => ({ ...row, analysis: a })));
+      const filtered = rows
+        .filter(row => row.score >= minScore)
+        .filter(row => {
+          if (!search) return true;
+          const hay = [row.strike, row.type, row.build.label, row.build.detail, row.analysis.expiryType, prettyDate(row.expiry)].join(" ").toLowerCase();
+          return hay.includes(search);
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 80);
+      els.scannerSubtitle.textContent = filtered.length + " setups above score " + minScore;
+      els.scannerTable.innerHTML = filtered.map(row => `
+        <tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
+          <td class="left"><span class="badge ${row.build.className}">${escapeHtml(row.build.label)}</span></td>
+          <td>${expiryLabel(row)}</td>
+          <td>${fmt(row.strike)}</td>
+          <td><span class="badge ${row.type === "CE" ? "ce" : "pe"}">${row.type}</span></td>
+          <td><span class="badge ${row.build.className}">${escapeHtml(row.build.detail)}</span></td>
+          <td><b>${fmt(row.score, 0)}</b></td>
+          <td>${fmtCompact(row.oi)}</td>
+          <td class="${row.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(row.changeOI)}</td>
+          <td>${fmt(row.ltp, 2)}</td>
+          <td>${pct(row.iv, 2)}</td>
+          <td>${fmt(row.delta, 3)}</td>
+          <td>${fmt(row.gamma, 5)}</td>
+          <td>${fmt(row.theta, 2)}</td>
+        </tr>`).join("") || `<tr><td class="left" colspan="13">No setups match the current filters.</td></tr>`;
+    }
+
+    function renderBuildupTable() {
+      els.buildupTable.innerHTML = state.analysis.map(a => `
+        <tr>
+          <td class="left">${prettyDate(a.expiry)} <span class="badge info">${a.expiryType}</span></td>
+          <td class="num-pos">${fmtCompact(a.buildCounts["CE Buy"])}</td>
+          <td class="num-neg">${fmtCompact(a.buildCounts["CE Sell"])}</td>
+          <td class="num-pos">${fmtCompact(a.buildCounts["CE Cover"])}</td>
+          <td>${fmtCompact(a.buildCounts["CE Unwind"])}</td>
+          <td class="num-neg">${fmtCompact(a.buildCounts["PE Buy"])}</td>
+          <td class="num-pos">${fmtCompact(a.buildCounts["PE Sell"])}</td>
+          <td class="num-neg">${fmtCompact(a.buildCounts["PE Cover"])}</td>
+          <td>${fmtCompact(a.buildCounts["PE Unwind"])}</td>
+          <td>${fmt(a.pcrOi, 2)}</td>
+          <td>${fmt(a.pcrChgOi, 2)}</td>
+        </tr>`).join("") || `<tr><td class="left" colspan="11">No expiry data loaded.</td></tr>`;
+    }
+
+    function signalConfig(label) {
+      const configs = {
+        "CE Buy": {
+          optionClass: "ce",
+          bias: "Bullish",
+          biasClass: "good",
+          action: "Buy CE",
+          definition: "Call long build-up: OI up with call price up."
+        },
+        "CE Sell": {
+          optionClass: "ce",
+          bias: "Bearish",
+          biasClass: "bad",
+          action: "Sell CE",
+          definition: "Call writing: OI up with call price down."
+        },
+        "PE Buy": {
+          optionClass: "pe",
+          bias: "Bearish",
+          biasClass: "bad",
+          action: "Buy PE",
+          definition: "Put long build-up: OI up with put price up."
+        },
+        "PE Sell": {
+          optionClass: "pe",
+          bias: "Bullish",
+          biasClass: "good",
+          action: "Sell PE",
+          definition: "Put writing: OI up with put price down."
+        }
+      };
+      return configs[label] || {
+        optionClass: "neutral",
+        bias: "Neutral",
+        biasClass: "neutral",
+        action: label,
+        definition: "No strong buy/sell signal."
+      };
+    }
+
+    function signalRows() {
+      const allowed = new Set(["CE Buy", "PE Buy"]);
+      const search = els.searchInput.value.trim().toLowerCase();
+      return state.analysis.flatMap(a => a.rows.map(row => ({ ...row, analysis: a })))
+        .filter(row => allowed.has(row.build.label))
+        .filter(row => {
+          if (!search) return true;
+          const cfg = signalConfig(row.build.label);
+          const hay = [
+            row.strike,
+            row.type,
+            row.build.label,
+            cfg.bias,
+            row.analysis.expiryType,
+            prettyDate(row.expiry),
+            expiryLabel(row)
+          ].join(" ").toLowerCase();
+          return hay.includes(search);
+        })
+        .sort((a, b) => b.score - a.score);
+    }
+
+    function signalReason(row) {
+      const a = row.analysis;
+      const cfg = signalConfig(row.build.label);
+      const spot = asNumber(els.spotInput.value, 0);
+      const relation = row.strike === a.atmStrike ? "ATM strike" : row.strike > a.atmStrike ? "above ATM" : "below ATM";
+      const levelText = row.type === "CE"
+        ? (a.maxCe && row.strike === a.maxCe.strike ? "max CE OI resistance" : "CE side")
+        : (a.maxPe && row.strike === a.maxPe.strike ? "max PE OI support" : "PE side");
+      const pressure = cfg.bias === "Bullish" ? "supports upside pressure" : "supports downside pressure";
+      const greekTone = Math.abs(row.delta) >= 0.45 ? "strong delta" : "lower delta";
+      const gammaTone = row.gamma >= a.gammaAvg ? "gamma active" : "gamma light";
+      const thetaTone = Math.abs(row.theta) >= a.thetaAvg ? "theta heavy" : "theta normal";
+      return `${cfg.definition} Chg OI ${fmtCompact(row.changeOI)}, price chg ${fmt(row.priceChange, 2)}, IV ${pct(row.iv, 2)}. Strike is ${relation}, ${levelText}, ${greekTone}, ${gammaTone}, ${thetaTone}; ${pressure}.`;
+    }
+
+    function renderSignalTab() {
+      const rows = signalRows();
+      const minScore = asNumber(els.scoreInput.value, 55);
+      const focused = rows.filter(row => row.score >= minScore);
+      const labels = ["CE Buy", "PE Buy"];
+      const top = focused[0] || rows[0] || null;
+      const ceBuyCount = focused.filter(row => row.build.label === "CE Buy").length;
+      const peBuyCount = focused.filter(row => row.build.label === "PE Buy").length;
+      els.signalSubtitle.textContent = focused.length + " buy signals above score " + minScore;
+      els.signalSummary.innerHTML = [
+        card("Top Signal", top ? top.build.label : "-", top ? `${fmt(top.strike)} ${top.type} score ${fmt(top.score, 0)}` : "No signal", top ? signalConfig(top.build.label).biasClass : ""),
+        card("CE Buy", fmt(ceBuyCount), "Call buy / bullish long build-up", ceBuyCount >= peBuyCount ? "good" : ""),
+        card("PE Buy", fmt(peBuyCount), "Put buy / bearish long build-up", peBuyCount > ceBuyCount ? "bad" : ""),
+        card("Signal Filter", fmt(minScore), "Minimum score currently applied", "info"),
+        card("Expiry View", state.activeAnalysis ? prettyDate(state.activeAnalysis.expiry) : "-", state.mode + " mode", "watch"),
+        card("Buy Engine", "On", "OI + price + IV + Greeks + levels", "info")
+      ].join("");
+      els.signalCards.innerHTML = labels.map(label => {
+        const cfg = signalConfig(label);
+        const group = focused.filter(row => row.build.label === label);
+        const best = group[0] || rows.find(row => row.build.label === label);
+        const totalChg = group.reduce((total, row) => total + Math.abs(row.changeOI), 0);
+        const avgScore = group.length ? avg(group.map(row => row.score)) : 0;
+        const reasons = best
+          ? [
+              signalReason(best),
+              `Best strike ${fmt(best.strike)} ${best.type}, score ${fmt(best.score, 0)}, OI ${fmtCompact(best.oi)}.`,
+              `Group strength ${fmt(group.length)} signals, Chg OI ${fmtCompact(totalChg)}, avg score ${fmt(avgScore, 0)}.`
+            ]
+          : [
+              cfg.definition,
+              "No row is above the current score filter.",
+              "Lower the score filter or wait for fresh OI and price confirmation."
+            ];
+        return `<article class="signal-card ${cfg.optionClass}">
+          <h3>${escapeHtml(label)} <span class="badge ${cfg.biasClass}">${escapeHtml(cfg.bias)}</span></h3>
+          <strong>${fmt(group.length)}</strong>
+          <p>${escapeHtml(cfg.action)} signal count above the active score filter.</p>
+          <ul class="reason-list">${reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
+        </article>`;
+      }).join("");
+      els.signalReasonTable.innerHTML = focused.slice(0, 100).map(row => {
+        const cfg = signalConfig(row.build.label);
+        return `<tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
+          <td class="left"><span class="badge ${cfg.optionClass}">${escapeHtml(row.build.label)}</span></td>
+          <td><span class="badge ${cfg.biasClass}">${escapeHtml(cfg.bias)}</span></td>
+          <td>${expiryLabel(row)}</td>
+          <td>${fmt(row.strike)}</td>
+          <td><b>${fmt(row.score, 0)}</b></td>
+          <td>${fmtCompact(row.oi)}</td>
+          <td class="${row.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(row.changeOI)}</td>
+          <td>${fmt(row.ltp, 2)}</td>
+          <td class="${row.priceChange >= 0 ? "num-pos" : "num-neg"}">${fmt(row.priceChange, 2)}</td>
+          <td>${pct(row.iv, 2)}</td>
+          <td>${fmt(row.delta, 3)}</td>
+          <td>${fmt(row.gamma, 5)}</td>
+          <td>${fmt(row.theta, 2)}</td>
+          <td class="left">${escapeHtml(signalReason(row))}</td>
+        </tr>`;
+      }).join("") || `<tr><td class="left" colspan="14">No CE/PE buy signals above the current score/search filter. Lower Minimum Score or clear the Strike / Signal Filter.</td></tr>`;
+    }
+
+    function renderEngine() {
+      const a = state.activeAnalysis;
+      if (!a) {
+        els.engineExpiry.textContent = "-";
+        setSignalTile(els.bullTile, 0, "Bullish Pressure", "No active expiry");
+        setSignalTile(els.bearTile, 0, "Bearish Pressure", "No active expiry");
+        setSignalTile(els.premiumTile, 0, "Premium Bias", "No active expiry");
+        els.engineStats.innerHTML = "";
+        els.levelStats.innerHTML = "";
+        return;
+      }
+      els.engineExpiry.textContent = prettyDate(a.expiry) + " - " + a.expiryType;
+      setSignalTile(els.bullTile, a.bullish, "Bullish Pressure", "PE sell plus CE buy score");
+      setSignalTile(els.bearTile, a.bearish, "Bearish Pressure", "CE sell plus PE buy score");
+      const premiumLabel = a.premiumScore >= 62 ? "Sell Premium" : a.premiumScore <= 42 ? "Buy Premium" : "Balanced";
+      setSignalTile(els.premiumTile, a.premiumScore, premiumLabel, "IV, theta, gamma and ATM premium");
+      els.engineStats.innerHTML = [
+        mini("CE OI", fmtCompact(a.ceOi)),
+        mini("PE OI", fmtCompact(a.peOi)),
+        mini("CE Chg OI", fmtCompact(a.ceChgOi)),
+        mini("PE Chg OI", fmtCompact(a.peChgOi)),
+        mini("IV Skew", pct(a.ivSkew, 2)),
+        mini("Gamma Avg", fmt(a.gammaAvg, 5))
+      ].join("");
+      els.levelStats.innerHTML = [
+        mini("ATM Strike", fmt(a.atmStrike)),
+        mini("Resistance", a.maxCe ? fmt(a.maxCe.strike) + " CE" : "-"),
+        mini("Support", a.maxPe ? fmt(a.maxPe.strike) + " PE" : "-"),
+        mini("Max Pain", fmt(a.maxPain.strike)),
+        mini("Upper BE", fmt(a.upperBreak, 2)),
+        mini("Lower BE", fmt(a.lowerBreak, 2)),
+        mini("Move Needed", pct(a.expectedMovePct, 2)),
+        mini("Liquidity", fmt(a.liquidityScore, 0)),
+        mini("Volume / OI", fmt(a.volumeOiRatio, 3))
+      ].join("");
+    }
+
+    function setSignalTile(el, score, label, detail) {
+      el.querySelector("b").textContent = label;
+      el.querySelector("strong").textContent = fmt(score, 0);
+      el.querySelector(".meter span").style.width = clamp(score, 3, 100) + "%";
+      el.querySelector("small").textContent = detail;
+    }
+
+    function mini(label, value) {
+      return `<div class="mini-stat"><span>${escapeHtml(label)}</span><b>${value}</b></div>`;
+    }
+
+    function guardItem(label, value, className = "") {
+      return `<div class="guard-item ${className}"><span>${escapeHtml(label)}</span><b>${escapeHtml(value)}</b></div>`;
+    }
+
+    function renderTradeGuard() {
+      const a = state.activeAnalysis;
+      if (!a) {
+        els.tradeGuard.innerHTML = `<div class="empty">No active signal.</div>`;
+        return;
+      }
+      const spot = asNumber(els.spotInput.value, 0);
+      const diff = a.bullish - a.bearish;
+      const strength = Math.abs(diff);
+      const directionClass = diff > 12 ? "good" : diff < -12 ? "bad" : "watch";
+      const qualityClass = a.liquidityScore >= 65 && strength >= 18 ? "good" : a.liquidityScore < 50 ? "bad" : "watch";
+      let trigger = "Wait for fresh OI alignment near ATM";
+      let invalid = "Avoid if signal flips on next refresh";
+      let avoid = "Low volume or IV spike without OI support";
+      if (a.signal.label === "Bullish") {
+        trigger = "Spot above " + fmt(a.atmStrike) + " with PE Sell / CE Buy above score";
+        invalid = "Weak below support " + (a.maxPe ? fmt(a.maxPe.strike) : fmt(a.lowerBreak, 0));
+        avoid = "Avoid chasing near resistance " + (a.maxCe ? fmt(a.maxCe.strike) : fmt(a.upperBreak, 0));
+      } else if (a.signal.label === "Bearish") {
+        trigger = "Spot below " + fmt(a.atmStrike) + " with CE Sell / PE Buy above score";
+        invalid = "Weak above resistance " + (a.maxCe ? fmt(a.maxCe.strike) : fmt(a.upperBreak, 0));
+        avoid = "Avoid chasing near support " + (a.maxPe ? fmt(a.maxPe.strike) : fmt(a.lowerBreak, 0));
+      } else if (a.signal.label.includes("Premium")) {
+        trigger = "Prefer defined-risk premium setup inside " + fmt(a.lowerBreak, 0) + " - " + fmt(a.upperBreak, 0);
+        invalid = "Break and hold outside expected move";
+        avoid = "Avoid naked selling when gamma or IV expands";
+      }
+      els.guardSubtitle.textContent = qualityClass === "good" ? "Trade-ready filter" : "Wait / verify";
+      els.tradeGuard.innerHTML = [
+        guardItem("Bias", a.signal.label + " (" + fmt(diff, 0) + ")", directionClass),
+        guardItem("Quality", fmt(a.liquidityScore, 0) + " liquidity / " + fmt(strength, 0) + " strength", qualityClass),
+        guardItem("Trigger", trigger, directionClass),
+        guardItem("Invalidation", invalid, "bad"),
+        guardItem("Avoid", avoid, "watch"),
+        guardItem("Max Pain", fmt(a.maxPain.strike) + " / ATM " + fmt(a.atmStrike), "info")
+      ].join("");
+    }
+
+    function signalKey(a) {
+      if (!a) return "";
+      const diffBucket = Math.round((a.bullish - a.bearish) / 5) * 5;
+      const liquidityBucket = Math.round(a.liquidityScore / 10) * 10;
+      return [a.expiry, a.signal.label, diffBucket, liquidityBucket, a.maxPain.strike].join("|");
+    }
+
+    function recordSignalHistory() {
+      const a = state.activeAnalysis;
+      if (!a) return;
+      const key = signalKey(a);
+      if (key === state.lastSignalKey) return;
+      const previousKey = state.lastSignalKey;
+      state.lastSignalKey = key;
+      const item = {
+        time: new Date(),
+        signal: a.signal.label,
+        expiry: a.expiry,
+        className: a.signal.className,
+        diff: a.bullish - a.bearish,
+        liquidity: a.liquidityScore,
+        maxPain: a.maxPain.strike
+      };
+      state.signalHistory.unshift(item);
+      state.signalHistory = state.signalHistory.slice(0, 8);
+      if (previousKey && state.alertsEnabled) notifySignalChange(item);
+    }
+
+    function renderSignalHistory() {
+      if (!state.signalHistory.length) {
+        els.signalHistory.innerHTML = `<div class="empty">No signal changes yet.</div>`;
+        return;
+      }
+      els.signalHistory.innerHTML = state.signalHistory.map(item => `
+        <div class="history-item ${item.className}">
+          <span>${item.time.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+          <b>${escapeHtml(item.signal)} - ${prettyDate(item.expiry)} - bias ${fmt(item.diff, 0)} - max pain ${fmt(item.maxPain)}</b>
+        </div>`).join("");
+    }
+
+    function notifySignalChange(item) {
+      try {
+        beepAlert();
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("NIFTY signal changed", {
+            body: item.signal + " - " + prettyDate(item.expiry) + " - bias " + fmt(item.diff, 0)
+          });
+        }
+      } catch (error) {
+        state.lastAutoError = "Alert error: " + error.message;
+      }
+    }
+
+    function beepAlert() {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.32);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+      window.setTimeout(() => ctx.close(), 500);
+    }
+
+    async function toggleAlerts() {
+      state.alertsEnabled = !state.alertsEnabled;
+      if (state.alertsEnabled && "Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+      updateAlertControls();
+    }
+
+    function updateAlertControls() {
+      els.alertToggleBtn.classList.toggle("alert-on", state.alertsEnabled);
+      els.alertButtonText.textContent = state.alertsEnabled ? "Alerts On" : "Alerts Off";
+    }
+
+    function renderChain() {
+      const a = state.activeAnalysis;
+      if (!a) {
+        els.chainTable.innerHTML = `<tr><td class="left" colspan="19">No chain data loaded.</td></tr>`;
+        return;
+      }
+      const spot = asNumber(els.spotInput.value, 0);
+      els.chainSubtitle.textContent = prettyDate(a.expiry) + " - ATM Strike " + fmt(a.atmStrike) + " - spot " + fmt(spot, 2);
+      const rows = a.strikes.map(strike => {
+        const pair = {
+          CE: a.rows.find(c => c.strike === strike && c.type === "CE"),
+          PE: a.rows.find(c => c.strike === strike && c.type === "PE")
+        };
+        return { strike, pair };
+      });
+      els.chainTable.innerHTML = rows.map(({ strike, pair }) => {
+        const ce = pair.CE;
+        const pe = pair.PE;
+        return `<tr class="${strike === a.atmStrike ? "atm-row" : ""}">
+          ${chainCell(ce, "signal")}
+          ${chainCell(ce, "score")}
+          ${chainCell(ce, "oi")}
+          ${chainCell(ce, "changeOI")}
+          ${chainCell(ce, "ltp")}
+          ${chainCell(ce, "iv")}
+          ${chainCell(ce, "delta")}
+          ${chainCell(ce, "gamma")}
+          ${chainCell(ce, "theta")}
+          <td class="strike">${fmt(strike)}</td>
+          ${chainCell(pe, "theta")}
+          ${chainCell(pe, "gamma")}
+          ${chainCell(pe, "delta")}
+          ${chainCell(pe, "iv")}
+          ${chainCell(pe, "ltp")}
+          ${chainCell(pe, "changeOI")}
+          ${chainCell(pe, "oi")}
+          ${chainCell(pe, "score")}
+          ${chainCell(pe, "signal")}
+        </tr>`;
+      }).join("");
+    }
+
+    function chainCell(contract, key) {
+      if (!contract) return "<td>-</td>";
+      if (key === "signal") return `<td><span class="badge ${contract.build.className}">${escapeHtml(contract.build.label)}</span></td>`;
+      if (key === "score") return `<td><b>${fmt(contract.score, 0)}</b></td>`;
+      if (key === "oi") return `<td>${fmtCompact(contract.oi)}</td>`;
+      if (key === "changeOI") return `<td class="${contract.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(contract.changeOI)}</td>`;
+      if (key === "ltp") return `<td>${fmt(contract.ltp, 2)}</td>`;
+      if (key === "iv") return `<td>${pct(contract.iv, 2)}</td>`;
+      if (key === "delta") return `<td>${fmt(contract.delta, 3)}</td>`;
+      if (key === "gamma") return `<td>${fmt(contract.gamma, 5)}</td>`;
+      if (key === "theta") return `<td>${fmt(contract.theta, 2)}</td>`;
+      return "<td>-</td>";
+    }
+
+    function renderStrategy() {
+      const a = state.activeAnalysis;
+      if (!a) {
+        els.strategySummary.innerHTML = `<div class="empty">No strategy data loaded</div>`;
+        els.strategyGrid.innerHTML = "";
+        return;
+      }
+      els.strategySummary.innerHTML = [
+        card("Combined Premium", fmt(a.atmPremium, 2), "ATM straddle premium", "info"),
+        card("Expected Move", fmt(a.atmPremium, 2), pct(a.expectedMovePct, 2) + " from spot", "info"),
+        card("Break-even Range", fmt(a.lowerBreak, 0) + " - " + fmt(a.upperBreak, 0), "ATM premium range", "watch"),
+        card("Premium Edge", fmt(a.premiumScore, 0), a.premiumScore >= 62 ? "Theta plus IV favors sellers" : "Gamma or lower IV favors buyers", a.premiumScore >= 62 ? "watch" : "info"),
+        card("IV Skew", pct(a.ivSkew, 2), "PE IV minus CE IV", a.ivSkew > 0 ? "good" : "bad"),
+        card("Directional Score", fmt(a.bullish - a.bearish, 0), "Positive bullish, negative bearish", a.bullish >= a.bearish ? "good" : "bad")
+      ].join("");
+      const strategies = buildStrategies(a);
+      els.strategyGrid.innerHTML = strategies.map(renderStrategyCard).join("");
+    }
+
+    function nearestStrike(strikes, target) {
+      return strikes.reduce((best, strike) => Math.abs(strike - target) < Math.abs(best - target) ? strike : best, strikes[0]);
+    }
+
+    function buildStrategies(a) {
+      const step = medianStep(a.strikes) || 50;
+      const atm = a.atmStrike;
+      const bullish = a.bullish - a.bearish;
+      const premiumSell = a.premiumScore >= 62;
+      const highGamma = a.gammaAvg > 0.0015;
+      const list = [];
+      const callBuy = nearestStrike(a.strikes, atm);
+      const callSell = nearestStrike(a.strikes, atm + step * 3);
+      const putBuy = nearestStrike(a.strikes, atm);
+      const putSell = nearestStrike(a.strikes, atm - step * 3);
+      const farCall = nearestStrike(a.strikes, atm + step * 5);
+      const farPut = nearestStrike(a.strikes, atm - step * 5);
+      if (bullish > 14) {
+        list.push({
+          title: premiumSell ? "Bull Put Credit Spread" : "Bull Call Debit Spread",
+          badge: "Bullish",
+          className: "good",
+          score: clamp(a.bullish + (premiumSell ? 6 : 0), 0, 100),
+          setup: premiumSell ? "PE writing, positive PCR and theta favor a defined-risk credit setup." : "CE buying pressure with manageable IV favors a directional debit setup.",
+          legs: premiumSell
+            ? [{ action: "SELL", text: putSell + " PE" }, { action: "BUY", text: farPut + " PE" }]
+            : [{ action: "BUY", text: callBuy + " CE" }, { action: "SELL", text: callSell + " CE" }]
+        });
+      }
+      if (bullish < -14) {
+        list.push({
+          title: premiumSell ? "Bear Call Credit Spread" : "Bear Put Debit Spread",
+          badge: "Bearish",
+          className: "bad",
+          score: clamp(a.bearish + (premiumSell ? 6 : 0), 0, 100),
+          setup: premiumSell ? "CE writing, weak PCR and theta favor a defined-risk credit setup." : "PE buying pressure with gamma support favors a directional debit setup.",
+          legs: premiumSell
+            ? [{ action: "SELL", text: callSell + " CE" }, { action: "BUY", text: farCall + " CE" }]
+            : [{ action: "BUY", text: putBuy + " PE" }, { action: "SELL", text: putSell + " PE" }]
+        });
+      }
+      list.push({
+        title: premiumSell ? "Short Iron Fly" : "Long Straddle",
+        badge: premiumSell ? "Theta" : "Gamma",
+        className: premiumSell ? "watch" : "info",
+        score: premiumSell ? a.premiumScore : clamp(100 - a.premiumScore + (highGamma ? 8 : 0), 0, 100),
+        setup: premiumSell ? "High IV and theta load favor selling ATM premium with protection." : "Lower IV or stronger gamma favors premium buying around ATM.",
+        legs: premiumSell
+          ? [{ action: "SELL", text: atm + " CE" }, { action: "SELL", text: atm + " PE" }, { action: "BUY", text: farCall + " CE" }, { action: "BUY", text: farPut + " PE" }]
+          : [{ action: "BUY", text: atm + " CE" }, { action: "BUY", text: atm + " PE" }]
+      });
+      list.push({
+        title: "IV Skew Hedge",
+        badge: "IV",
+        className: a.ivSkew >= 0 ? "good" : "bad",
+        score: clamp(55 + Math.abs(a.ivSkew) * 4, 0, 100),
+        setup: a.ivSkew >= 0 ? "PE IV is richer than CE IV; hedge bullish trades with lower debit." : "CE IV is richer than PE IV; hedge bearish trades with lower debit.",
+        legs: a.ivSkew >= 0
+          ? [{ action: "SELL", text: putSell + " PE" }, { action: "BUY", text: farPut + " PE" }]
+          : [{ action: "SELL", text: callSell + " CE" }, { action: "BUY", text: farCall + " CE" }]
+      });
+      return list.slice(0, 4);
+    }
+
+    function medianStep(strikes) {
+      const diffs = [];
+      for (let i = 1; i < strikes.length; i += 1) {
+        const diff = strikes[i] - strikes[i - 1];
+        if (diff > 0) diffs.push(diff);
+      }
+      diffs.sort((a, b) => a - b);
+      return diffs[Math.floor(diffs.length / 2)] || 50;
+    }
+
+    function renderStrategyCard(item) {
+      return `<article class="strategy-card">
+        <div>
+          <span class="badge ${item.className}">${escapeHtml(item.badge)}</span>
+          <h3>${escapeHtml(item.title)}</h3>
+        </div>
+        <div class="meter"><span style="width:${clamp(item.score, 3, 100)}%"></span></div>
+        <b>Score ${fmt(item.score, 0)}</b>
+        <div class="legs">
+          ${item.legs.map(leg => `<div class="leg ${leg.action === "BUY" ? "buy" : "sell"} ${leg.text.includes(" CE") ? "ce" : "pe"}"><b>${leg.action}</b><span>${escapeHtml(leg.text)}</span><em>${escapeHtml(state.activeAnalysis.expiryType)}</em></div>`).join("")}
+        </div>
+        <div class="setup">${escapeHtml(item.setup)}</div>
+      </article>`;
+    }
+
+    function renderDataPreview() {
+      els.dataPreviewTable.innerHTML = state.contracts.slice(0, 40).map(c => `
+        <tr class="${c.type === "CE" ? "ce-row" : "pe-row"}">
+          <td class="left">${expiryLabel(c)}</td>
+          <td>${fmt(c.strike)}</td>
+          <td><span class="badge ${c.type === "CE" ? "ce" : "pe"}">${c.type}</span></td>
+          <td>${fmtCompact(c.oi)}</td>
+          <td class="${c.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(c.changeOI)}</td>
+          <td>${fmt(c.ltp, 2)}</td>
+          <td>${pct(c.iv, 2)}</td>
+          <td>${fmt(c.delta, 3)}</td>
+          <td>${fmt(c.gamma, 5)}</td>
+          <td>${fmt(c.theta, 2)}</td>
+        </tr>`).join("") || `<tr><td class="left" colspan="10">No data loaded.</td></tr>`;
+    }
+
+    function renderSnapshot() {
+      const a = state.activeAnalysis;
+      const spot = asNumber(els.spotInput.value, 0);
+      els.snapSpot.textContent = fmt(spot, 2);
+      els.snapExpiry.textContent = a ? prettyDate(a.expiry) : "-";
+      els.snapSignal.textContent = a ? a.signal.label : "-";
+      els.snapUpdated.textContent = state.lastUpdated ? state.lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-";
+      els.dataStatus.textContent = state.sourceName + " - " + state.contracts.length + " contracts";
+    }
+
+    function renderAll() {
+      renderSummary();
+      renderScannerTable();
+      renderBuildupTable();
+      renderSignalTab();
+      renderEngine();
+      renderTradeGuard();
+      renderSignalHistory();
+      renderChain();
+      renderStrategy();
+      renderDataPreview();
+      renderSnapshot();
+    }
+
+    function loadContracts(contracts, sourceName) {
+      state.contracts = enrichContracts(contracts);
+      state.sourceName = sourceName;
+      state.lastUpdated = new Date();
+      state.lastAutoError = "";
+      populateExpirySelect();
+      analyse();
+      els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)}</span>`;
+      updateAutoControls();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[ch]));
+    }
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".view").forEach(view => view.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.view).classList.add("active");
+      });
+    });
+
+    document.querySelectorAll(".segmented button").forEach(button => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".segmented button").forEach(b => b.classList.remove("active"));
+        button.classList.add("active");
+        state.mode = button.dataset.mode;
+        state.selectedExpiry = "auto";
+        els.expirySelect.value = "auto";
+        analyse();
+      });
+    });
+
+    els.rangeInput.addEventListener("input", () => {
+      els.rangeOutput.textContent = els.rangeInput.value;
+      analyse();
+    });
+    els.scoreInput.addEventListener("input", () => {
+      els.scoreOutput.textContent = els.scoreInput.value;
+      renderScannerTable();
+      renderSignalTab();
+    });
+    els.searchInput.addEventListener("input", () => {
+      renderScannerTable();
+      renderSignalTab();
+    });
+    els.spotInput.addEventListener("change", analyse);
+    els.expirySelect.addEventListener("change", () => {
+      state.selectedExpiry = els.expirySelect.value;
+      analyse();
+    });
+    document.getElementById("analyseBtn").addEventListener("click", analyse);
+    document.getElementById("demoBtn").addEventListener("click", () => {
+      setDataSource({ kind: "demo", label: "Demo" });
+      loadContracts(buildDemoData(), "Demo");
+    });
+    document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+    document.getElementById("fileInput").addEventListener("change", async event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        const contracts = parseInput(text);
+        setDataSource({ kind: "file", file, name: file.name });
+        loadContracts(contracts, file.name);
+      } catch (error) {
+        els.importStatus.innerHTML = `<span class="badge bad">Import error</span><span>${escapeHtml(error.message)}</span>`;
+      }
+      event.target.value = "";
+    });
+    document.getElementById("loadUrlBtn").addEventListener("click", loadUrlSource);
+    document.getElementById("pasteAnalyseBtn").addEventListener("click", () => {
+      try {
+        const contracts = parseInput(els.pasteInput.value);
+        setDataSource({ kind: "paste", label: "Pasted data" });
+        loadContracts(contracts, "Pasted data");
+      } catch (error) {
+        els.importStatus.innerHTML = `<span class="badge bad">Import error</span><span>${escapeHtml(error.message)}</span>`;
+      }
+    });
+    document.getElementById("clearPasteBtn").addEventListener("click", () => {
+      els.pasteInput.value = "";
+      els.importStatus.textContent = "";
+    });
+    els.autoToggleBtn.addEventListener("click", () => {
+      if (state.autoEnabled) stopAutoUpdate();
+      else startAutoUpdate();
+    });
+    els.alertToggleBtn.addEventListener("click", toggleAlerts);
+
+    loadContracts(buildDemoData(), "Demo");
+    updateAlertControls();
+  </script>
+</body>
+</html>
