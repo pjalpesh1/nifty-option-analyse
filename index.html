@@ -975,6 +975,80 @@
       line-height: 1.35;
     }
 
+    .mobile-chain-cards {
+      display: none;
+      gap: 10px;
+    }
+
+    .chain-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .chain-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+      font-weight: 850;
+    }
+
+    .chain-card-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .chain-side {
+      padding: 10px;
+      display: grid;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .chain-side.ce {
+      background: var(--ce-bg);
+      border-right: 1px solid var(--line);
+    }
+
+    .chain-side.pe {
+      background: var(--pe-bg);
+    }
+
+    .chain-side h3 {
+      margin: 0;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chain-mini {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .chain-mini span {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 850;
+      display: block;
+    }
+
+    .chain-mini b {
+      display: block;
+      margin-top: 2px;
+      overflow-wrap: anywhere;
+    }
+
     .num-pos {
       color: var(--green);
       font-weight: 750;
@@ -1254,18 +1328,223 @@
         width: min(100% - 18px, 1540px);
       }
 
+      body {
+        padding-bottom: 66px;
+      }
+
+      .topbar {
+        position: static;
+      }
+
+      .topbar-inner {
+        min-height: 0;
+        padding: 10px 0;
+        gap: 10px;
+      }
+
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+      }
+
       .brand-title h1 {
         white-space: normal;
+        font-size: 17px;
       }
 
       .market-strip {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .market-pill {
+        min-width: 0;
+        padding: 7px 8px;
+      }
+
+      .toolbar-inner {
+        gap: 10px;
+      }
+
+      .control-grid {
+        gap: 8px;
+      }
+
+      .actions {
+        gap: 6px;
+      }
+
+      .actions .btn,
+      .auto-countdown {
+        min-height: 36px;
+        padding: 7px 9px;
+      }
+
+      .tabs {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        width: 100%;
+        margin: 0;
+        padding: 7px 8px 9px;
+        gap: 6px;
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 -8px 22px rgba(20, 24, 32, 0.12);
+        justify-content: space-between;
+      }
+
+      .tab {
+        flex: 1 1 0;
+        min-height: 40px;
+        padding: 7px 5px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        background: var(--surface-soft);
+        font-size: 11px;
+        line-height: 1.1;
+      }
+
+      .tab.active {
+        transform: none;
+        background: var(--ink);
+        color: white;
+        border-color: var(--ink);
+      }
+
+      main {
+        padding-top: 10px;
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .metric-card {
+        min-height: 88px;
+        padding: 10px;
+      }
+
+      .metric-card strong {
+        font-size: 19px;
+      }
+
+      .panel-head {
+        min-height: 46px;
+        padding: 10px 11px;
+      }
+
+      .panel-body {
+        padding: 10px;
+      }
+
+      .mini-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .mini-stat {
+        min-height: 64px;
+      }
+
+      .mini-stat b {
+        font-size: 15px;
       }
 
       .segmented button,
       .tab,
       .btn {
         font-size: 12px;
+      }
+
+      #scannerTable,
+      #signalReasonTable,
+      #buildupTable,
+      #dataPreviewTable {
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0 9px;
+      }
+
+      #scannerTable thead,
+      #signalReasonTable thead,
+      #buildupTable thead,
+      #dataPreviewTable thead {
+        display: none;
+      }
+
+      #scannerTable tr,
+      #signalReasonTable tr,
+      #buildupTable tr,
+      #dataPreviewTable tr {
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--surface);
+      }
+
+      #scannerTable td,
+      #signalReasonTable td,
+      #buildupTable td,
+      #dataPreviewTable td {
+        display: grid;
+        grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1fr);
+        gap: 8px;
+        width: 100%;
+        text-align: right;
+        white-space: normal;
+        border-bottom: 1px solid rgba(20, 24, 32, 0.08);
+        padding: 8px 10px;
+        align-items: center;
+      }
+
+      #scannerTable td:last-child,
+      #signalReasonTable td:last-child,
+      #buildupTable td:last-child,
+      #dataPreviewTable td:last-child {
+        border-bottom: 0;
+      }
+
+      #scannerTable td::before,
+      #signalReasonTable td::before,
+      #buildupTable td::before,
+      #dataPreviewTable td::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: 850;
+        text-align: left;
+      }
+
+      #signalReasonTable td:last-child {
+        min-width: 0;
+        max-width: none;
+        text-align: left;
+      }
+
+      .chain-table {
+        display: none;
+      }
+
+      .mobile-chain-cards {
+        display: grid;
+      }
+
+      .signal-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .signal-card {
+        min-height: 0;
+      }
+
+      .strategy-card {
+        min-height: 0;
       }
     }
   </style>
@@ -1566,6 +1845,7 @@
                 <tbody></tbody>
               </table>
             </div>
+            <div class="mobile-chain-cards" id="mobileChainCards"></div>
           </div>
         </section>
       </section>
@@ -1674,6 +1954,7 @@
       scannerTable: document.querySelector("#scannerTable tbody"),
       buildupTable: document.querySelector("#buildupTable tbody"),
       chainTable: document.querySelector("#chainTable tbody"),
+      mobileChainCards: document.getElementById("mobileChainCards"),
       strategyGrid: document.getElementById("strategyGrid"),
       strategySummary: document.getElementById("strategySummary"),
       dataPreviewTable: document.querySelector("#dataPreviewTable tbody"),
@@ -2422,36 +2703,36 @@
       els.scannerSubtitle.textContent = filtered.length + " setups above score " + minScore;
       els.scannerTable.innerHTML = filtered.map(row => `
         <tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
-          <td class="left"><span class="badge ${row.build.className}">${escapeHtml(row.build.label)}</span></td>
-          <td>${expiryLabel(row)}</td>
-          <td>${fmt(row.strike)}</td>
-          <td><span class="badge ${row.type === "CE" ? "ce" : "pe"}">${row.type}</span></td>
-          <td><span class="badge ${row.build.className}">${escapeHtml(row.build.detail)}</span></td>
-          <td><b>${fmt(row.score, 0)}</b></td>
-          <td>${fmtCompact(row.oi)}</td>
-          <td class="${row.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(row.changeOI)}</td>
-          <td>${fmt(row.ltp, 2)}</td>
-          <td>${pct(row.iv, 2)}</td>
-          <td>${fmt(row.delta, 3)}</td>
-          <td>${fmt(row.gamma, 5)}</td>
-          <td>${fmt(row.theta, 2)}</td>
+          <td class="left" data-label="Setup"><span class="badge ${row.build.className}">${escapeHtml(row.build.label)}</span></td>
+          <td data-label="Expiry">${expiryLabel(row)}</td>
+          <td data-label="Strike">${fmt(row.strike)}</td>
+          <td data-label="Type"><span class="badge ${row.type === "CE" ? "ce" : "pe"}">${row.type}</span></td>
+          <td data-label="Build-up"><span class="badge ${row.build.className}">${escapeHtml(row.build.detail)}</span></td>
+          <td data-label="Score"><b>${fmt(row.score, 0)}</b></td>
+          <td data-label="OI">${fmtCompact(row.oi)}</td>
+          <td data-label="Chg OI" class="${row.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(row.changeOI)}</td>
+          <td data-label="LTP">${fmt(row.ltp, 2)}</td>
+          <td data-label="IV">${pct(row.iv, 2)}</td>
+          <td data-label="Delta">${fmt(row.delta, 3)}</td>
+          <td data-label="Gamma">${fmt(row.gamma, 5)}</td>
+          <td data-label="Theta">${fmt(row.theta, 2)}</td>
         </tr>`).join("") || `<tr><td class="left" colspan="13">No setups match the current filters.</td></tr>`;
     }
 
     function renderBuildupTable() {
       els.buildupTable.innerHTML = state.analysis.map(a => `
         <tr>
-          <td class="left">${prettyDate(a.expiry)} <span class="badge info">${a.expiryType}</span></td>
-          <td class="num-pos">${fmtCompact(a.buildCounts["CE Buy"])}</td>
-          <td class="num-neg">${fmtCompact(a.buildCounts["CE Sell"])}</td>
-          <td class="num-pos">${fmtCompact(a.buildCounts["CE Cover"])}</td>
-          <td>${fmtCompact(a.buildCounts["CE Unwind"])}</td>
-          <td class="num-neg">${fmtCompact(a.buildCounts["PE Buy"])}</td>
-          <td class="num-pos">${fmtCompact(a.buildCounts["PE Sell"])}</td>
-          <td class="num-neg">${fmtCompact(a.buildCounts["PE Cover"])}</td>
-          <td>${fmtCompact(a.buildCounts["PE Unwind"])}</td>
-          <td>${fmt(a.pcrOi, 2)}</td>
-          <td>${fmt(a.pcrChgOi, 2)}</td>
+          <td class="left" data-label="Expiry">${prettyDate(a.expiry)} <span class="badge info">${a.expiryType}</span></td>
+          <td class="num-pos" data-label="CE Buy">${fmtCompact(a.buildCounts["CE Buy"])}</td>
+          <td class="num-neg" data-label="CE Sell">${fmtCompact(a.buildCounts["CE Sell"])}</td>
+          <td class="num-pos" data-label="CE Cover">${fmtCompact(a.buildCounts["CE Cover"])}</td>
+          <td data-label="CE Unwind">${fmtCompact(a.buildCounts["CE Unwind"])}</td>
+          <td class="num-neg" data-label="PE Buy">${fmtCompact(a.buildCounts["PE Buy"])}</td>
+          <td class="num-pos" data-label="PE Sell">${fmtCompact(a.buildCounts["PE Sell"])}</td>
+          <td class="num-neg" data-label="PE Cover">${fmtCompact(a.buildCounts["PE Cover"])}</td>
+          <td data-label="PE Unwind">${fmtCompact(a.buildCounts["PE Unwind"])}</td>
+          <td data-label="PCR OI">${fmt(a.pcrOi, 2)}</td>
+          <td data-label="PCR Chg OI">${fmt(a.pcrChgOi, 2)}</td>
         </tr>`).join("") || `<tr><td class="left" colspan="11">No expiry data loaded.</td></tr>`;
     }
 
@@ -2576,20 +2857,20 @@
       els.signalReasonTable.innerHTML = focused.slice(0, 100).map(row => {
         const cfg = signalConfig(row.build.label);
         return `<tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
-          <td class="left"><span class="badge ${cfg.optionClass}">${escapeHtml(row.build.label)}</span></td>
-          <td><span class="badge ${cfg.biasClass}">${escapeHtml(cfg.bias)}</span></td>
-          <td>${expiryLabel(row)}</td>
-          <td>${fmt(row.strike)}</td>
-          <td><b>${fmt(row.score, 0)}</b></td>
-          <td>${fmtCompact(row.oi)}</td>
-          <td class="${row.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(row.changeOI)}</td>
-          <td>${fmt(row.ltp, 2)}</td>
-          <td class="${row.priceChange >= 0 ? "num-pos" : "num-neg"}">${fmt(row.priceChange, 2)}</td>
-          <td>${pct(row.iv, 2)}</td>
-          <td>${fmt(row.delta, 3)}</td>
-          <td>${fmt(row.gamma, 5)}</td>
-          <td>${fmt(row.theta, 2)}</td>
-          <td class="left">${escapeHtml(signalReason(row))}</td>
+          <td class="left" data-label="Signal"><span class="badge ${cfg.optionClass}">${escapeHtml(row.build.label)}</span></td>
+          <td data-label="Bias"><span class="badge ${cfg.biasClass}">${escapeHtml(cfg.bias)}</span></td>
+          <td data-label="Expiry">${expiryLabel(row)}</td>
+          <td data-label="Strike">${fmt(row.strike)}</td>
+          <td data-label="Score"><b>${fmt(row.score, 0)}</b></td>
+          <td data-label="OI">${fmtCompact(row.oi)}</td>
+          <td data-label="Chg OI" class="${row.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(row.changeOI)}</td>
+          <td data-label="LTP">${fmt(row.ltp, 2)}</td>
+          <td data-label="Price Chg" class="${row.priceChange >= 0 ? "num-pos" : "num-neg"}">${fmt(row.priceChange, 2)}</td>
+          <td data-label="IV">${pct(row.iv, 2)}</td>
+          <td data-label="Delta">${fmt(row.delta, 3)}</td>
+          <td data-label="Gamma">${fmt(row.gamma, 5)}</td>
+          <td data-label="Theta">${fmt(row.theta, 2)}</td>
+          <td class="left" data-label="Reason">${escapeHtml(signalReason(row))}</td>
         </tr>`;
       }).join("") || `<tr><td class="left" colspan="14">No CE/PE buy signals above the current score/search filter. Lower Minimum Score or clear the Strike / Signal Filter.</td></tr>`;
     }
@@ -2603,6 +2884,7 @@
         setSignalTile(els.premiumTile, 0, "Premium Bias", "No active expiry");
         els.engineStats.innerHTML = "";
         els.levelStats.innerHTML = "";
+        els.mobileChainCards.innerHTML = "";
         return;
       }
       els.engineExpiry.textContent = prettyDate(a.expiry) + " - " + a.expiryType;
@@ -2772,6 +3054,7 @@
       const a = state.activeAnalysis;
       if (!a) {
         els.chainTable.innerHTML = `<tr><td class="left" colspan="19">No chain data loaded.</td></tr>`;
+        els.mobileChainCards.innerHTML = `<div class="empty">No chain data loaded.</div>`;
         return;
       }
       const spot = asNumber(els.spotInput.value, 0);
@@ -2808,6 +3091,45 @@
           ${chainCell(pe, "signal")}
         </tr>`;
       }).join("");
+      renderMobileChain(a, rows);
+    }
+
+    function renderMobileChain(a, rows) {
+      const atmIndex = rows.findIndex(row => row.strike === a.atmStrike);
+      const start = clamp(atmIndex - 4, 0, rows.length - 1);
+      const end = clamp(atmIndex + 4, 0, rows.length - 1);
+      const focusRows = rows.slice(start, end + 1);
+      els.mobileChainCards.innerHTML = focusRows.map(({ strike, pair }) => {
+        const isAtm = strike === a.atmStrike;
+        return `<article class="chain-card ${isAtm ? "atm-row" : ""}">
+          <div class="chain-card-head">
+            <span>Strike ${fmt(strike)}</span>
+            ${isAtm ? `<span class="badge watch">ATM</span>` : `<span class="badge neutral">${strike > a.atmStrike ? "Above ATM" : "Below ATM"}</span>`}
+          </div>
+          <div class="chain-card-body">
+            ${renderMobileChainSide(pair.CE, "CE")}
+            ${renderMobileChainSide(pair.PE, "PE")}
+          </div>
+        </article>`;
+      }).join("");
+    }
+
+    function renderMobileChainSide(contract, type) {
+      const sideClass = type === "CE" ? "ce" : "pe";
+      if (!contract) {
+        return `<div class="chain-side ${sideClass}"><h3>${type}<span class="badge neutral">-</span></h3><div class="chain-mini"><div><span>Data</span><b>-</b></div></div></div>`;
+      }
+      return `<div class="chain-side ${sideClass}">
+        <h3>${type}<span class="badge ${contract.build.className}">${escapeHtml(contract.build.label)}</span></h3>
+        <div class="chain-mini">
+          <div><span>Score</span><b>${fmt(contract.score, 0)}</b></div>
+          <div><span>LTP</span><b>${fmt(contract.ltp, 2)}</b></div>
+          <div><span>OI</span><b>${fmtCompact(contract.oi)}</b></div>
+          <div><span>Chg OI</span><b class="${contract.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(contract.changeOI)}</b></div>
+          <div><span>IV</span><b>${pct(contract.iv, 2)}</b></div>
+          <div><span>Delta</span><b>${fmt(contract.delta, 3)}</b></div>
+        </div>
+      </div>`;
     }
 
     function chainCell(contract, key) {
@@ -2935,16 +3257,16 @@
     function renderDataPreview() {
       els.dataPreviewTable.innerHTML = state.contracts.slice(0, 40).map(c => `
         <tr class="${c.type === "CE" ? "ce-row" : "pe-row"}">
-          <td class="left">${expiryLabel(c)}</td>
-          <td>${fmt(c.strike)}</td>
-          <td><span class="badge ${c.type === "CE" ? "ce" : "pe"}">${c.type}</span></td>
-          <td>${fmtCompact(c.oi)}</td>
-          <td class="${c.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(c.changeOI)}</td>
-          <td>${fmt(c.ltp, 2)}</td>
-          <td>${pct(c.iv, 2)}</td>
-          <td>${fmt(c.delta, 3)}</td>
-          <td>${fmt(c.gamma, 5)}</td>
-          <td>${fmt(c.theta, 2)}</td>
+          <td class="left" data-label="Expiry">${expiryLabel(c)}</td>
+          <td data-label="Strike">${fmt(c.strike)}</td>
+          <td data-label="Type"><span class="badge ${c.type === "CE" ? "ce" : "pe"}">${c.type}</span></td>
+          <td data-label="OI">${fmtCompact(c.oi)}</td>
+          <td data-label="Chg OI" class="${c.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(c.changeOI)}</td>
+          <td data-label="LTP">${fmt(c.ltp, 2)}</td>
+          <td data-label="IV">${pct(c.iv, 2)}</td>
+          <td data-label="Delta">${fmt(c.delta, 3)}</td>
+          <td data-label="Gamma">${fmt(c.gamma, 5)}</td>
+          <td data-label="Theta">${fmt(c.theta, 2)}</td>
         </tr>`).join("") || `<tr><td class="left" colspan="10">No data loaded.</td></tr>`;
     }
 
