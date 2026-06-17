@@ -87,10 +87,24 @@
     }
 
     .brand {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      padding: 0;
       display: flex;
       align-items: center;
       gap: 12px;
       min-width: 0;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .brand:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: var(--radius-sm);
     }
 
     .brand-mark {
@@ -505,6 +519,11 @@
       border-color: var(--line);
       color: var(--ink);
       transform: translateY(1px);
+    }
+
+    .tab.home-tab,
+    .utility-action {
+      display: none;
     }
 
     main {
@@ -1840,7 +1859,7 @@
   <div class="app">
     <header class="topbar">
       <div class="topbar-inner">
-        <div class="brand">
+        <div class="brand" id="homeBrand" role="button" tabindex="0" aria-label="Open scanner dashboard">
           <div class="brand-mark" aria-hidden="true">NF</div>
           <div class="brand-title">
             <h1>NIFTY Option Analyse Pro</h1>
@@ -1916,8 +1935,8 @@
           </div>
         </div>
         <div class="actions">
-          <button type="button" class="btn" id="demoBtn"><span class="icon refresh"></span>Demo</button>
-          <button type="button" class="btn" id="uploadBtn"><span class="icon upload"></span>Upload</button>
+          <button type="button" class="btn utility-action" id="demoBtn" hidden><span class="icon refresh"></span>Demo</button>
+          <button type="button" class="btn utility-action" id="uploadBtn" hidden><span class="icon upload"></span>Upload</button>
           <button type="button" class="btn primary" id="analyseBtn"><span class="icon play"></span>Analyse</button>
           <button type="button" class="btn live" id="autoToggleBtn"><span class="icon clock"></span><span id="autoButtonText">Auto Start</span></button>
           <button type="button" class="btn" id="alertToggleBtn"><span class="icon bell"></span><span id="alertButtonText">Alerts Off</span></button>
@@ -1928,7 +1947,7 @@
     </section>
 
     <nav class="tabs" aria-label="Dashboard views">
-      <button type="button" class="tab active" data-view="scannerView">Scanner</button>
+      <button type="button" class="tab home-tab active" data-view="scannerView" hidden>Scanner</button>
       <button type="button" class="tab" data-view="signalView">Signals</button>
       <button type="button" class="tab" data-view="chainView">Option Chain</button>
       <button type="button" class="tab" data-view="strategyView">Strategy</button>
@@ -3792,12 +3811,21 @@
       }[ch]));
     }
 
+    function activateView(viewId) {
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.view === viewId));
+      document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === viewId));
+    }
+
+    document.getElementById("homeBrand").addEventListener("click", () => activateView("scannerView"));
+    document.getElementById("homeBrand").addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      activateView("scannerView");
+    });
+
     document.querySelectorAll(".tab").forEach(tab => {
       tab.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        document.querySelectorAll(".view").forEach(view => view.classList.remove("active"));
-        tab.classList.add("active");
-        document.getElementById(tab.dataset.view).classList.add("active");
+        activateView(tab.dataset.view);
       });
     });
 
