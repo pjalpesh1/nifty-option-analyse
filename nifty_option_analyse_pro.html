@@ -1905,6 +1905,15 @@
             <label for="searchInput">Strike / Signal Filter</label>
             <input id="searchInput" type="search" placeholder="ATM, CE buy, PE buy, 24100">
           </div>
+          <div class="field">
+            <label for="autoIntervalSelect">Auto Interval</label>
+            <select id="autoIntervalSelect">
+              <option value="60000">1 min</option>
+              <option value="300000">5 min</option>
+              <option value="900000">15 min</option>
+              <option value="3600000">60 min</option>
+            </select>
+          </div>
         </div>
         <div class="actions">
           <button type="button" class="btn" id="demoBtn"><span class="icon refresh"></span>Demo</button>
@@ -2207,6 +2216,18 @@
   </div>
 
   <script>
+    const AUTO_INTERVAL_OPTIONS = [60000, 300000, 900000, 3600000];
+    const DEFAULT_AUTO_INTERVAL_MS = 60000;
+
+    function storedAutoIntervalMs() {
+      try {
+        const value = Number(localStorage.getItem("niftyAutoIntervalMs"));
+        return AUTO_INTERVAL_OPTIONS.includes(value) ? value : DEFAULT_AUTO_INTERVAL_MS;
+      } catch (error) {
+        return DEFAULT_AUTO_INTERVAL_MS;
+      }
+    }
+
     const state = {
       contracts: [],
       mode: "weekly",
@@ -2218,7 +2239,7 @@
       dataSource: { kind: "demo", label: "Demo" },
       autoEnabled: false,
       autoTimerId: null,
-      autoIntervalMs: 60000,
+      autoIntervalMs: storedAutoIntervalMs(),
       nextUpdateAt: null,
       updateInFlight: false,
       lastAutoError: "",
@@ -2235,6 +2256,7 @@
       scoreInput: document.getElementById("scoreInput"),
       scoreOutput: document.getElementById("scoreOutput"),
       searchInput: document.getElementById("searchInput"),
+      autoIntervalSelect: document.getElementById("autoIntervalSelect"),
       mobileCockpit: document.getElementById("mobileCockpit"),
       summaryGrid: document.getElementById("summaryGrid"),
       signalSummary: document.getElementById("signalSummary"),
@@ -2640,6 +2662,24 @@
       return m + ":" + s;
     }
 
+    function formatInterval(ms) {
+      const minutes = Math.max(1, Math.round(ms / 60000));
+      return minutes + "m";
+    }
+
+    function setAutoInterval(value) {
+      const next = Number(value);
+      state.autoIntervalMs = AUTO_INTERVAL_OPTIONS.includes(next) ? next : DEFAULT_AUTO_INTERVAL_MS;
+      els.autoIntervalSelect.value = String(state.autoIntervalMs);
+      try {
+        localStorage.setItem("niftyAutoIntervalMs", String(state.autoIntervalMs));
+      } catch (error) {}
+      if (state.autoEnabled && !state.updateInFlight) {
+        state.nextUpdateAt = Date.now() + state.autoIntervalMs;
+      }
+      updateAutoControls("Interval " + formatInterval(state.autoIntervalMs));
+    }
+
     function updateAutoControls(message = "") {
       const active = state.autoEnabled;
       els.autoToggleBtn.classList.toggle("active", active);
@@ -2652,12 +2692,12 @@
       }
       if (state.updateInFlight) {
         els.autoButtonText.textContent = "Updating...";
-        els.autoCountdown.textContent = "Source: " + dataSourceLabel();
+        els.autoCountdown.textContent = "Source: " + dataSourceLabel() + " / every " + formatInterval(state.autoIntervalMs);
         return;
       }
-      const remaining = state.nextUpdateAt ? formatSeconds(state.nextUpdateAt - Date.now()) : "01:00";
+      const remaining = state.nextUpdateAt ? formatSeconds(state.nextUpdateAt - Date.now()) : formatSeconds(state.autoIntervalMs);
       els.autoButtonText.textContent = "Stop " + remaining;
-      els.autoCountdown.textContent = message || "Next update " + remaining + " - " + dataSourceLabel();
+      els.autoCountdown.textContent = message || "Next update " + remaining + " / every " + formatInterval(state.autoIntervalMs) + " - " + dataSourceLabel();
     }
 
     function startAutoUpdate() {
@@ -3785,6 +3825,8 @@
       renderScannerTable();
       renderSignalTab();
     });
+    els.autoIntervalSelect.value = String(state.autoIntervalMs);
+    els.autoIntervalSelect.addEventListener("change", () => setAutoInterval(els.autoIntervalSelect.value));
     els.scannerMobileCards.addEventListener("click", event => {
       const card = event.target.closest(".flip-signal-card");
       if (!card) return;
