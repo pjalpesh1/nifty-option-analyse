@@ -2593,6 +2593,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     const DATA_SOURCE_URL_KEY = "niftyNseFeedUrl";
     const SNAPSHOT_CACHE_KEY = "niftyNseLastSnapshot";
     const POSITION_HISTORY_KEY = "niftyPaperPositionHistory";
+    const POSITION_HISTORY_LIMIT = 100;
+    const POSITION_HISTORY_DISPLAY_LIMIT = 10;
     const MARKET_TIMEZONE = "Asia/Kolkata";
     const MARKET_OPEN_MINUTES = 9 * 60 + 15;
     const MARKET_CLOSE_MINUTES = 15 * 60 + 30;
@@ -2687,7 +2689,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         const raw = localStorage.getItem(POSITION_HISTORY_KEY);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed.map(revivePositionHistoryItem).slice(0, 50) : [];
+        return Array.isArray(parsed) ? parsed.map(revivePositionHistoryItem).slice(0, POSITION_HISTORY_LIMIT) : [];
       } catch (error) {
         return [];
       }
@@ -2733,7 +2735,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
 
     function savePositionHistory() {
       try {
-        localStorage.setItem(POSITION_HISTORY_KEY, JSON.stringify(state.positionHistory.slice(0, 50)));
+        localStorage.setItem(POSITION_HISTORY_KEY, JSON.stringify(state.positionHistory.slice(0, POSITION_HISTORY_LIMIT)));
       } catch (error) {}
     }
 
@@ -4217,7 +4219,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       position.pnlValue = pnl.value;
       position.pnlPct = pnl.pct;
       state.positionHistory.unshift({ ...position });
-      state.positionHistory = state.positionHistory.slice(0, 50);
+      state.positionHistory = state.positionHistory.slice(0, POSITION_HISTORY_LIMIT);
       savePositionHistory();
       state.lastPositionExitKey = position.key;
       state.paperPosition = null;
@@ -4342,13 +4344,13 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       return `<span><small>${escapeHtml(label)}</small><b>${value}</b></span>`;
     }
 
-    function renderClosedPosition(item) {
+    function renderClosedPosition(item, index = 0) {
       const pnl = positionPnl(item);
       const duration = item.durationMs || (reviveDate(item.closedAt)?.getTime() || 0) - (reviveDate(item.openedAt)?.getTime() || 0);
       return `<article class="closed-position-card ${pnl.className}">
         <div class="closed-position-head">
           <div>
-            <b>${escapeHtml(item.signal)} ${fmt(item.strike)} ${item.type}</b>
+            <b>#${fmt(index + 1)} ${escapeHtml(item.signal)} ${fmt(item.strike)} ${item.type}</b>
             <small>${prettyDate(item.expiry)} ${escapeHtml(item.expiryType || "")} / ${escapeHtml(item.exitReason || "Closed")}</small>
           </div>
           <span class="badge ${pnl.className}">${pnl.label}</span>
@@ -4424,10 +4426,19 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
           </article>`;
       }
       if (!state.positionHistory.length) {
-        els.positionHistory.innerHTML = `<div class="empty">No closed virtual positions yet.</div>`;
+        els.positionHistory.innerHTML = `<div class="empty">No closed virtual positions yet. After positions close, the latest ${POSITION_HISTORY_DISPLAY_LIMIT} entries stay here for reference.</div>`;
         return;
       }
-      els.positionHistory.innerHTML = state.positionHistory.map(renderClosedPosition).join("");
+      const visibleHistory = state.positionHistory.slice(0, POSITION_HISTORY_DISPLAY_LIMIT);
+      const savedCount = state.positionHistory.length;
+      const latestClose = visibleHistory[0]?.closedAt ? dateTimeLabel(visibleHistory[0].closedAt) : "-";
+      els.positionHistory.innerHTML = `
+        <div class="history-item info">
+          <span>Closed Reference</span>
+          <b>Showing latest ${fmt(visibleHistory.length)} of ${fmt(savedCount)} saved positions / last close ${escapeHtml(latestClose)}</b>
+        </div>
+        ${visibleHistory.map(renderClosedPosition).join("")}
+      `;
     }
 
     function renderEngine() {
