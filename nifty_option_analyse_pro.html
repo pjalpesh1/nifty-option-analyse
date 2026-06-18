@@ -1541,6 +1541,64 @@
       padding: 20px;
     }
 
+    .connect-panel {
+      grid-column: 1 / -1;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      gap: 14px;
+    }
+
+    .connect-panel h2 {
+      margin: 0;
+      font-size: clamp(20px, 4vw, 32px);
+      line-height: 1.08;
+    }
+
+    .connect-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 650;
+      max-width: 820px;
+    }
+
+    .connect-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .connect-step {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .connect-step span {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .connect-step b {
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .connect-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -1613,6 +1671,7 @@
 
       .control-grid,
       .summary-grid,
+      .connect-steps,
       .two-col,
       .signal-band,
       .signal-cards,
@@ -3579,11 +3638,31 @@
       </article>`;
     }
 
+    function noDataPanel() {
+      return `<section class="connect-panel">
+        <div>
+          <span class="badge watch">Live data required</span>
+          <h2>No option-chain data loaded yet</h2>
+          <p>This GitHub Pages site is only the scanner interface. It needs your secure Angel One backend JSON/CSV feed URL before NIFTY option data, signals, and positions can appear.</p>
+        </div>
+        <div class="connect-steps">
+          <div class="connect-step"><span>Step 1</span><b>Create/run your Angel One SmartAPI backend feed.</b></div>
+          <div class="connect-step"><span>Step 2</span><b>Paste the HTTPS feed URL in the Data tab and press Load URL.</b></div>
+          <div class="connect-step"><span>Step 3</span><b>Press Auto Start. It refreshes during NSE market time and shows cached data after reload.</b></div>
+        </div>
+        <div class="connect-actions">
+          <button type="button" class="btn primary" data-action="open-data"><span class="icon refresh"></span>Open Data Tab</button>
+          <span class="auto-countdown">${escapeHtml(marketStatusLabel())}</span>
+        </div>
+      </section>`;
+    }
+
     function renderSummary() {
       const a = state.activeAnalysis;
       if (!a) {
-        els.summaryGrid.innerHTML = `<div class="empty">No contracts loaded</div>`;
-        els.mobileCockpit.innerHTML = `<div class="empty">No contracts loaded</div>`;
+        const panel = noDataPanel();
+        els.summaryGrid.innerHTML = panel;
+        els.mobileCockpit.innerHTML = panel;
         return;
       }
       els.summaryGrid.innerHTML = [
@@ -4750,6 +4829,15 @@
       });
     });
 
+    document.addEventListener("click", event => {
+      const actionButton = event.target.closest("[data-action]");
+      if (!actionButton) return;
+      if (actionButton.dataset.action === "open-data") {
+        activateView("dataView");
+        window.setTimeout(() => els.sourceUrlInput.focus(), 0);
+      }
+    });
+
     document.querySelectorAll(".segmented button").forEach(button => {
       button.addEventListener("click", () => {
         document.querySelectorAll(".segmented button").forEach(b => b.classList.remove("active"));
@@ -4830,7 +4918,12 @@
         els.importStatus.innerHTML = `<span class="badge watch">Feed saved</span><span>Saved Angel One feed URL found. Press Load URL for manual refresh or Auto Start during market hours.</span>`;
       }
     }
-    if (hasSavedFeed && storedAutoEnabled()) {
+    if (hasSavedFeed && !hasCachedData) {
+      window.setTimeout(async () => {
+        await refreshLiveData({ force: true });
+        if (storedAutoEnabled()) startAutoUpdate();
+      }, 0);
+    } else if (hasSavedFeed && storedAutoEnabled()) {
       window.setTimeout(startAutoUpdate, 0);
     } else {
       updateAutoControls();
