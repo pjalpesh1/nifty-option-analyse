@@ -1,0 +1,38 @@
+name: NSE NIFTY data auto update
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub schedules use UTC. This window covers NSE 09:15-15:30 IST,
+    # and the PowerShell updater skips by Indian market time.
+    - cron: "*/5 3-10 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nifty-nse-data-feed
+  cancel-in-progress: true
+
+jobs:
+  update-nifty-dat:
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch NSE option-chain and update DAT
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\run_nse_site_data_1min.ps1 `
+            -Once `
+            -RunOnlyMarketHours `
+            -LocalDatPath "data\nifty-options.dat" `
+            -RepoOwner "pjalpesh1" `
+            -RepoName "nifty-option-analyse" `
+            -RepoPath "data/nifty-options.dat" `
+            -Branch "main"
