@@ -2436,7 +2436,7 @@
             <div class="panel-body stack">
               <div class="field">
                 <label for="sourceUrlInput">NSE Option Chain / DAT File URL</label>
-                <input id="sourceUrlInput" type="url" placeholder="data/nifty-options.dat">
+                <input id="sourceUrlInput" type="url" placeholder="https://raw.githubusercontent.com/pjalpesh1/nifty-option-analyse/main/data/nifty-options.dat">
               </div>
               <div class="actions">
                 <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
@@ -2466,7 +2466,7 @@
                 </div>
                 <div class="guard-item info">
                   <span>Default URL</span>
-                  <b>Default is data/nifty-options.dat. The Excel uploader can refresh this hosted file every 60 seconds.</b>
+                  <b>Default is the raw GitHub DAT feed. The NSE updater can refresh this hosted file every 60 seconds.</b>
                 </div>
                 <div class="guard-item bad">
                   <span>Browser Limit</span>
@@ -2551,7 +2551,11 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
   <script>
     const AUTO_INTERVAL_OPTIONS = [1000, 5000, 15000, 60000, 300000, 900000, 3600000];
     const DEFAULT_AUTO_INTERVAL_MS = 1000;
-    const DEFAULT_NSE_OPTION_CHAIN_URL = "data/nifty-options.dat";
+    const DEFAULT_NSE_OPTION_CHAIN_URL = "https://raw.githubusercontent.com/pjalpesh1/nifty-option-analyse/main/data/nifty-options.dat";
+    const LEGACY_NSE_FEED_URLS = new Set([
+      "data/nifty-options.dat",
+      "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
+    ]);
     const AUTO_INTERVAL_KEY = "niftyNseAutoIntervalMs";
     const AUTO_ENABLED_KEY = "niftyNseAutoEnabled";
     const DATA_SOURCE_URL_KEY = "niftyNseFeedUrl";
@@ -2618,7 +2622,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
 
     function storedFeedUrl() {
       try {
-        return localStorage.getItem(DATA_SOURCE_URL_KEY) || DEFAULT_NSE_OPTION_CHAIN_URL;
+        const savedUrl = localStorage.getItem(DATA_SOURCE_URL_KEY) || "";
+        return LEGACY_NSE_FEED_URLS.has(savedUrl) ? DEFAULT_NSE_OPTION_CHAIN_URL : (savedUrl || DEFAULT_NSE_OPTION_CHAIN_URL);
       } catch (error) {
         return DEFAULT_NSE_OPTION_CHAIN_URL;
       }
