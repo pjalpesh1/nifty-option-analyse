@@ -2743,6 +2743,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       activeAnalysis: null,
       sourceName: "NSE data feed not connected",
       lastUpdated: null,
+      dataSignature: "",
       dataSource: null,
       autoEnabled: false,
       autoTimerId: null,
@@ -5174,12 +5175,35 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       };
     }
 
+    function contractsDataSignature(contracts) {
+      return contracts
+        .map(snapshotContract)
+        .sort((a, b) => String(a.expiry).localeCompare(String(b.expiry)) || a.strike - b.strike || String(a.type).localeCompare(String(b.type)))
+        .map(c => [
+          c.expiry,
+          c.strike,
+          c.type,
+          c.oi,
+          c.changeOI,
+          c.ltp,
+          c.priceChange,
+          c.iv,
+          c.delta,
+          c.gamma,
+          c.theta,
+          c.volume,
+          c.underlyingValue
+        ].join("~"))
+        .join("|");
+    }
+
     function saveSnapshotCache() {
       try {
         localStorage.setItem(SNAPSHOT_CACHE_KEY, JSON.stringify({
           contracts: state.contracts.map(snapshotContract),
           sourceName: state.sourceName,
           lastUpdated: state.lastUpdated ? state.lastUpdated.toISOString() : null,
+          dataSignature: state.dataSignature,
           refreshCount: state.refreshCount
         }));
       } catch (error) {}
@@ -5199,6 +5223,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       state.contracts = enrichContracts(snapshot.contracts);
       state.sourceName = snapshot.sourceName || "Last saved NSE snapshot";
       state.lastUpdated = reviveDate(snapshot.lastUpdated) || new Date();
+      state.dataSignature = snapshot.dataSignature || contractsDataSignature(state.contracts);
       state.refreshCount = Number(snapshot.refreshCount) || 0;
       state.lastAutoError = "";
       populateExpirySelect();
@@ -5208,15 +5233,25 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     }
 
     function loadContracts(contracts, sourceName) {
-      state.contracts = enrichContracts(contracts);
+      const nextContracts = enrichContracts(contracts);
+      const nextSignature = contractsDataSignature(nextContracts);
+      const dataChanged = !state.dataSignature || nextSignature !== state.dataSignature;
+      state.contracts = nextContracts;
       updateSpotFromContracts(state.contracts);
       state.sourceName = sourceName;
-      state.lastUpdated = new Date();
+      if (dataChanged || !state.lastUpdated) {
+        state.lastUpdated = new Date();
+      }
+      state.dataSignature = nextSignature;
       state.lastAutoError = "";
       populateExpirySelect();
       analyse();
       saveSnapshotCache();
-      els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)} at ${formatIstClock(state.lastUpdated)}</span>`;
+      if (dataChanged) {
+        els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)}. Data changed at ${formatIstClock(state.lastUpdated)}</span>`;
+      } else {
+        els.importStatus.innerHTML = `<span class="badge watch">No change</span><span>${state.contracts.length} contracts checked from ${escapeHtml(sourceName)}. Updated time stays ${formatIstClock(state.lastUpdated)}</span>`;
+      }
       updateAutoControls();
     }
 
