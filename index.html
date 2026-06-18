@@ -1487,6 +1487,77 @@
       font-size: 13px;
     }
 
+    .payoff-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(260px, 0.8fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .payoff-chart {
+      min-height: 280px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .payoff-chart svg {
+      display: block;
+      width: 100%;
+      height: 260px;
+    }
+
+    .payoff-axis {
+      stroke: #9aa6b6;
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .payoff-grid-line {
+      stroke: rgba(154, 166, 182, 0.32);
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .payoff-line {
+      fill: none;
+      stroke: var(--teal);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .payoff-profit {
+      fill: rgba(22, 126, 83, 0.12);
+      stroke: none;
+    }
+
+    .payoff-loss {
+      fill: rgba(194, 65, 77, 0.11);
+      stroke: none;
+    }
+
+    .payoff-marker {
+      stroke: var(--ink);
+      stroke-width: 1.5;
+      stroke-dasharray: 5 5;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .payoff-marker.expected {
+      stroke: var(--amber);
+      stroke-dasharray: 4 4;
+    }
+
+    .payoff-label {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
     .legs {
       display: grid;
       gap: 6px;
@@ -1708,7 +1779,8 @@
       .signal-band,
       .signal-cards,
       .mini-grid,
-      .strategy-grid {
+      .strategy-grid,
+      .payoff-layout {
         grid-template-columns: 1fr;
       }
     }
@@ -2458,6 +2530,18 @@
         <div class="strategy-grid" id="strategyGrid"></div>
         <section class="panel">
           <div class="panel-head">
+            <h2>Strategy Payoff</h2>
+            <span>Expiry P&L range</span>
+          </div>
+          <div class="panel-body">
+            <div class="payoff-layout">
+              <div class="payoff-chart" id="payoffChart"></div>
+              <div class="guard-list" id="payoffStats"></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
             <h2>AI Learning</h2>
             <span>Adaptive paper-trade memory</span>
           </div>
@@ -2469,6 +2553,7 @@
       </section>
 
       <section class="view" id="dataView">
+        <div class="summary-grid" id="feedHealthGrid"></div>
         <div class="data-layout">
           <section class="panel">
             <div class="panel-head">
@@ -2594,6 +2679,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     const AUTO_INTERVAL_OPTIONS = [1000, 5000, 15000, 60000, 300000, 900000, 3600000];
     const DEFAULT_AUTO_INTERVAL_MS = 1000;
     const DEFAULT_NSE_OPTION_CHAIN_URL = "https://raw.githubusercontent.com/pjalpesh1/nifty-option-analyse/main/data/nifty-options.dat";
+    const PAGE_DAT_FEED_URL = "https://pjalpesh1.github.io/nifty-option-analyse/data/nifty-options.dat";
+    const FALLBACK_FEED_URLS = [DEFAULT_NSE_OPTION_CHAIN_URL, PAGE_DAT_FEED_URL];
     const LEGACY_NSE_FEED_URLS = new Set([
       "data/nifty-options.dat",
       "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
@@ -2602,6 +2689,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     const AUTO_ENABLED_KEY = "niftyNseAutoEnabled";
     const DATA_SOURCE_URL_KEY = "niftyNseFeedUrl";
     const SNAPSHOT_CACHE_KEY = "niftyNseLastSnapshot";
+    const SPOT_HISTORY_KEY = "niftySpotHistory";
+    const SPOT_HISTORY_LIMIT = 120;
     const POSITION_HISTORY_KEY = "niftyPaperPositionHistory";
     const POSITION_HISTORY_LIMIT = 100;
     const POSITION_HISTORY_DISPLAY_LIMIT = 10;
@@ -2724,6 +2813,30 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       }
     }
 
+    function storedSpotHistory() {
+      try {
+        const raw = localStorage.getItem(SPOT_HISTORY_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .map(item => ({ time: reviveDate(item.time), value: asNumber(item.value, 0) }))
+          .filter(item => item.time && item.value > 0)
+          .slice(-SPOT_HISTORY_LIMIT);
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function saveSpotHistory() {
+      try {
+        localStorage.setItem(SPOT_HISTORY_KEY, JSON.stringify(state.spotHistory.slice(-SPOT_HISTORY_LIMIT).map(item => ({
+          time: item.time instanceof Date ? item.time.toISOString() : new Date(item.time).toISOString(),
+          value: item.value
+        }))));
+      } catch (error) {}
+    }
+
     function storedSnapshot() {
       try {
         const raw = localStorage.getItem(SNAPSHOT_CACHE_KEY);
@@ -2743,7 +2856,9 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       activeAnalysis: null,
       sourceName: "NSE data feed not connected",
       lastUpdated: null,
+      lastCheckedAt: null,
       dataSignature: "",
+      spotHistory: storedSpotHistory(),
       dataSource: null,
       autoEnabled: false,
       autoTimerId: null,
@@ -2788,6 +2903,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       positionSubtitle: document.getElementById("positionSubtitle"),
       positionCard: document.getElementById("positionCard"),
       positionHistory: document.getElementById("positionHistory"),
+      payoffChart: document.getElementById("payoffChart"),
+      payoffStats: document.getElementById("payoffStats"),
       aiLearningSummary: document.getElementById("aiLearningSummary"),
       aiLearningGrid: document.getElementById("aiLearningGrid"),
       scannerTable: document.querySelector("#scannerTable tbody"),
@@ -2798,6 +2915,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       strategyGrid: document.getElementById("strategyGrid"),
       strategySummary: document.getElementById("strategySummary"),
       dataPreviewTable: document.querySelector("#dataPreviewTable tbody"),
+      feedHealthGrid: document.getElementById("feedHealthGrid"),
       pasteInput: document.getElementById("pasteInput"),
       sourceUrlInput: document.getElementById("sourceUrlInput"),
       importStatus: document.getElementById("importStatus"),
@@ -2907,6 +3025,14 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       const date = new Date(iso + "T00:00:00");
       if (Number.isNaN(date.getTime())) return value;
       return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    }
+
+    function daysUntilExpiry(expiry) {
+      const iso = normDate(expiry);
+      if (!iso) return 1;
+      const expiryClose = new Date(iso + "T15:30:00+05:30");
+      if (Number.isNaN(expiryClose.getTime())) return 1;
+      return Math.max((expiryClose.getTime() - Date.now()) / DAY_MS, 1 / 24);
     }
 
     function expiryLabel(contractOrAnalysis) {
@@ -3210,6 +3336,123 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       if (spot > 0) els.spotInput.value = spot;
     }
 
+    function recordSpotHistory(spot, at = new Date()) {
+      const value = asNumber(spot, 0);
+      if (value <= 0) return;
+      const last = state.spotHistory[state.spotHistory.length - 1];
+      if (last && Math.abs(last.value - value) < 0.01 && Date.now() - last.time.getTime() < 30000) return;
+      state.spotHistory.push({ time: at instanceof Date ? at : new Date(at), value });
+      state.spotHistory = state.spotHistory.slice(-SPOT_HISTORY_LIMIT);
+      saveSpotHistory();
+    }
+
+    function simpleAverage(values) {
+      return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
+    }
+
+    function stdDev(values) {
+      if (values.length < 2) return 0;
+      const mean = simpleAverage(values);
+      const variance = simpleAverage(values.map(value => Math.pow(value - mean, 2)));
+      return Math.sqrt(variance);
+    }
+
+    function ema(values, period) {
+      if (!values.length) return 0;
+      const k = 2 / (period + 1);
+      return values.reduce((prev, value, index) => index === 0 ? value : value * k + prev * (1 - k), values[0]);
+    }
+
+    function calcRsi(values, period = 14) {
+      if (values.length < 3) return 50;
+      const sample = values.slice(-(period + 1));
+      let gains = 0;
+      let losses = 0;
+      for (let i = 1; i < sample.length; i += 1) {
+        const diff = sample[i] - sample[i - 1];
+        if (diff >= 0) gains += diff;
+        else losses += Math.abs(diff);
+      }
+      if (losses === 0) return gains > 0 ? 100 : 50;
+      const rs = gains / losses;
+      return 100 - (100 / (1 + rs));
+    }
+
+    function buildTechnicalContext(spot) {
+      const values = state.spotHistory.map(item => item.value).filter(value => value > 0);
+      const liveSpot = asNumber(spot, 0);
+      const series = liveSpot > 0 && values[values.length - 1] !== liveSpot ? [...values, liveSpot] : values;
+      if (series.length < 5) {
+        return {
+          points: series.length,
+          smaFast: liveSpot,
+          smaSlow: liveSpot,
+          rsi: 50,
+          bollUpper: liveSpot,
+          bollLower: liveSpot,
+          macd: 0,
+          macdSignal: 0,
+          macdHist: 0,
+          biasScore: 50,
+          biasLabel: "Building",
+          className: "watch",
+          detail: "Need more live spot updates"
+        };
+      }
+      const fast = simpleAverage(series.slice(-5));
+      const slow = simpleAverage(series.slice(-Math.min(12, series.length)));
+      const rsi = calcRsi(series, Math.min(14, series.length - 1));
+      const bollSample = series.slice(-Math.min(20, series.length));
+      const bollMid = simpleAverage(bollSample);
+      const band = stdDev(bollSample) * 2;
+      const macd = ema(series, 12) - ema(series, 26);
+      const macdSeries = series.map((_, index) => {
+        const sub = series.slice(0, index + 1);
+        return ema(sub, 12) - ema(sub, 26);
+      });
+      const macdSignal = ema(macdSeries, 9);
+      const macdHist = macd - macdSignal;
+      let score = 50;
+      score += clamp(((fast - slow) / Math.max(liveSpot, 1)) * 9000, -14, 14);
+      score += clamp((rsi - 50) * 0.32, -10, 10);
+      score += clamp(macdHist * 1.8, -8, 8);
+      if (liveSpot > bollMid + band * 0.8) score += 4;
+      if (liveSpot < bollMid - band * 0.8) score -= 4;
+      score = clamp(score, 0, 100);
+      const biasLabel = score >= 58 ? "Bullish Tech" : score <= 42 ? "Bearish Tech" : "Neutral Tech";
+      const className = score >= 58 ? "good" : score <= 42 ? "bad" : "neutral";
+      return {
+        points: series.length,
+        smaFast: fast,
+        smaSlow: slow,
+        rsi,
+        bollUpper: bollMid + band,
+        bollLower: bollMid - band,
+        macd,
+        macdSignal,
+        macdHist,
+        biasScore: score,
+        biasLabel,
+        className,
+        detail: "MA, RSI, Bollinger and MACD from live spot history"
+      };
+    }
+
+    function unusualActivityScore(contract) {
+      const volume = Math.max(asNumber(contract.volume, 0), 0);
+      const oi = Math.max(asNumber(contract.oi, 0), 0);
+      const changeOi = Math.abs(asNumber(contract.changeOI, 0));
+      const volumeOi = oi > 0 ? volume / oi : (volume > 0 ? 1 : 0);
+      const changeOiRatio = oi > 0 ? changeOi / oi : 0;
+      return clamp(Math.log10(volume + 10) * 8 + volumeOi * 60 + changeOiRatio * 35, 0, 100);
+    }
+
+    function topUnusualActivity(rows) {
+      return rows
+        .filter(row => row.volume > 0)
+        .sort((a, b) => b.flowScore - a.flowScore || b.volume - a.volume)[0] || null;
+    }
+
     function parseInput(text) {
       const trimmed = text.trim();
       if (!trimmed) return [];
@@ -3292,6 +3535,22 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       const contracts = parseInput(await response.text());
       if (!contracts.length) throw new Error("No contracts loaded");
       return contracts;
+    }
+
+    async function fetchFallbackContracts(primaryUrl, primaryError) {
+      let lastError = primaryError;
+      for (const url of FALLBACK_FEED_URLS) {
+        if (sameFeedUrl(url, primaryUrl)) continue;
+        try {
+          const contracts = await fetchContractsFromUrl(url);
+          setDataSource({ kind: "url", url, label: "Fallback DAT feed" });
+          els.sourceUrlInput.value = url;
+          return { contracts, url };
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError;
     }
 
     function canRefreshOutsideMarket() {
@@ -3547,10 +3806,9 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
           try {
             contracts = await fetchContractsFromUrl(primaryUrl);
           } catch (primaryError) {
-            if (sameFeedUrl(primaryUrl, DEFAULT_NSE_OPTION_CHAIN_URL)) throw primaryError;
             fallbackMessage = friendlyFetchError(primaryError);
-            setDefaultFeedSource();
-            contracts = await fetchContractsFromUrl(DEFAULT_NSE_OPTION_CHAIN_URL);
+            const fallback = await fetchFallbackContracts(primaryUrl, primaryError);
+            contracts = fallback.contracts;
           }
           sourceName = dataSourceLabel();
         } else {
@@ -3559,7 +3817,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         state.refreshCount += 1;
         loadContracts(contracts, sourceName);
         if (fallbackMessage) {
-          els.importStatus.innerHTML = `<span class="badge watch">Fallback feed</span><span>Saved feed failed (${escapeHtml(fallbackMessage)}). Loaded ${state.contracts.length} contracts from raw GitHub DAT at ${formatIstClock(state.lastUpdated)}.</span>`;
+          els.importStatus.innerHTML = `<span class="badge watch">Fallback feed</span><span>Primary feed failed (${escapeHtml(fallbackMessage)}). Loaded ${state.contracts.length} contracts from ${escapeHtml(sourceName)}.</span>`;
         }
         state.nextUpdateAt = state.autoEnabled ? nextAutoUpdateTime() : null;
       } catch (error) {
@@ -3868,9 +4126,12 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       const atmPremium = (atmPair.CE?.ltp || 0) + (atmPair.PE?.ltp || 0);
       const avgIv = avg(focus.map(c => c.iv).filter(Boolean));
       const atmIv = avg([atmPair.CE?.iv, atmPair.PE?.iv].filter(Boolean));
+      const daysToExpiry = daysUntilExpiry(expiry);
+      const ivExpectedMove = spot && atmIv ? spot * (atmIv / 100) * Math.sqrt(daysToExpiry / 365) : 0;
       const ivSkew = (atmPair.PE?.iv || avgIv) - (atmPair.CE?.iv || avgIv);
       const gammaAvg = avg(focus.map(c => c.gamma).filter(Boolean));
       const thetaAvg = avg(focus.map(c => Math.abs(c.theta)).filter(Boolean));
+      const technical = buildTechnicalContext(spot);
       const buildCounts = {};
       for (const key of ["CE Buy", "CE Sell", "CE Cover", "CE Unwind", "PE Buy", "PE Sell", "PE Cover", "PE Unwind", "Neutral"]) {
         buildCounts[key] = 0;
@@ -3889,6 +4150,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       bullish += clamp((pcrOi - 1) * 16, -12, 12);
       bullish += clamp((pcrChgOi - 1) * 8, -10, 10);
       bullish += ivSkew > 0.5 ? 3 : 0;
+      bullish += clamp((technical.biasScore - 50) * 0.24, -8, 8);
       bullish = clamp(bullish, 0, 100);
       const bearish = clamp(100 - bullish, 0, 100);
       const premiumScore = clamp(45 + (avgIv - 13) * 3 + thetaAvg * 1.3 - gammaAvg * 2200, 0, 100);
@@ -3899,17 +4161,24 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         const distanceScore = 100 - clamp(Math.abs(contract.strike - spot) / 8, 0, 70);
         const oiScore = clamp(Math.log10(Math.abs(contract.changeOI) + 10) * 16, 0, 100);
         const volScore = clamp(Math.log10(contract.volume + 10) * 13, 0, 100);
+        const flowScore = unusualActivityScore(contract);
         const ivScore = clamp(contract.iv * 2.4, 0, 100);
         const gammaScore = clamp(contract.gamma * 32000, 0, 100);
         const thetaScore = clamp(Math.abs(contract.theta) * 5, 0, 100);
         let greekFit = gammaScore * 0.18 + thetaScore * 0.12;
         if (build.label.includes("Sell")) greekFit += ivScore * 0.18;
         if (build.label.includes("Buy") || build.label.includes("Cover")) greekFit += clamp(100 - ivScore, 0, 100) * 0.1;
-        const rawScore = clamp(oiScore * 0.32 + volScore * 0.16 + distanceScore * 0.18 + greekFit + 8, 0, 100);
+        const technicalFit = build.side === "bullish"
+          ? clamp((technical.biasScore - 45) * 0.28, -4, 8)
+          : build.side === "bearish"
+            ? clamp((55 - technical.biasScore) * 0.28, -4, 8)
+            : 0;
+        const rawScore = clamp(oiScore * 0.29 + volScore * 0.14 + flowScore * 0.1 + distanceScore * 0.17 + greekFit + technicalFit + 8, 0, 100);
         const learning = adaptiveLearningForRow({ ...contract, build }, expiryType, atmStrike, adaptiveProfile);
         const score = clamp(rawScore + learning.adjustment, 0, 100);
-        return { ...contract, build, rawScore, score, learning };
+        return { ...contract, build, flowScore, rawScore, score, learning };
       });
+      const topFlow = topUnusualActivity(rowsWithScores.filter(row => focusStrikes.has(row.strike)));
       return {
         expiry,
         expiryType,
@@ -3933,6 +4202,9 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         atmPair,
         atmPremium,
         expectedMovePct: spot ? (atmPremium / spot) * 100 : 0,
+        ivExpectedMove,
+        ivExpectedMovePct: spot ? (ivExpectedMove / spot) * 100 : 0,
+        daysToExpiry,
         upperBreak: atmStrike + atmPremium,
         lowerBreak: atmStrike - atmPremium,
         avgIv,
@@ -3940,6 +4212,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         ivSkew,
         gammaAvg,
         thetaAvg,
+        technical,
+        topFlow,
         buildCounts,
         bullish,
         bearish,
@@ -4021,10 +4295,13 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         card("PCR OI", fmt(a.pcrOi, 2), "PE OI / CE OI", a.pcrOi >= 1 ? "good" : "bad"),
         card("PCR Chg OI", fmt(a.pcrChgOi, 2), "Fresh PE pressure vs CE pressure", a.pcrChgOi >= 1 ? "good" : "bad"),
         card("ATM Premium", fmt(a.atmPremium, 2), "Combined CE + PE premium", "info"),
+        card("IV Exp Move", fmt(a.ivExpectedMove, 2), pct(a.ivExpectedMovePct, 2) + " / " + fmt(a.daysToExpiry, 1) + " days", "info"),
         card("Max Pain", fmt(a.maxPain.strike), "Lowest option writer pain level", "watch"),
         card("Liquidity", fmt(a.liquidityScore, 0), fmtCompact(a.totalVolume) + " contracts volume", a.liquidityScore >= 65 ? "good" : "watch"),
         card("Average IV", pct(a.avgIv, 2), "ATM IV " + pct(a.atmIv, 2), a.avgIv > 18 ? "watch" : "info"),
-        card("Theta Load", fmt(a.thetaAvg, 2), "Average absolute theta near ATM", a.thetaAvg > 10 ? "watch" : "")
+        card("Theta Load", fmt(a.thetaAvg, 2), "Average absolute theta near ATM", a.thetaAvg > 10 ? "watch" : ""),
+        card("Technical Bias", fmt(a.technical.biasScore, 0), a.technical.biasLabel + " / RSI " + fmt(a.technical.rsi, 0), a.technical.className),
+        card("Option Flow", a.topFlow ? fmt(a.topFlow.flowScore, 0) : "-", a.topFlow ? a.topFlow.type + " " + fmt(a.topFlow.strike) + " / Vol " + fmtCompact(a.topFlow.volume) : "No unusual volume", a.topFlow?.flowScore >= 70 ? "watch" : "info")
       ].join("");
       renderMobileCockpit();
     }
@@ -4058,6 +4335,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
             ${cockpitStat("Support", a.maxPe ? fmt(a.maxPe.strike) + " PE" : "-")}
             ${cockpitStat("Resistance", a.maxCe ? fmt(a.maxCe.strike) + " CE" : "-")}
             ${cockpitStat("Premium", fmt(a.atmPremium, 2))}
+            ${cockpitStat("Tech", fmt(a.technical.biasScore, 0))}
           </div>
         </section>
         <div class="mobile-action-row">
@@ -4203,9 +4481,11 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       const atmGap = row.strike - row.analysis.atmStrike;
       const nearText = atmGap === 0 ? "at ATM" : `${Math.abs(atmGap)} pts ${atmGap > 0 ? "above" : "below"} ATM`;
       const direction = row.build.side === "bullish" ? "supports upside pressure" : row.build.side === "bearish" ? "supports downside pressure" : "needs confirmation";
+      const techText = row.analysis.technical ? `Technical ${fmt(row.analysis.technical.biasScore, 0)} (${row.analysis.technical.biasLabel})` : "Technical building";
+      const flowText = row.flowScore >= 70 ? `unusual option flow ${fmt(row.flowScore, 0)}` : `flow ${fmt(row.flowScore, 0)}`;
       return {
-        short: `${row.build.detail}, ${nearText}, ${direction}.`,
-        detail: `${row.build.label}: OI ${fmtCompact(row.oi)}, Chg OI ${fmtCompact(row.changeOI)}, price chg ${fmt(row.priceChange, 2)}, IV ${pct(row.iv, 2)}. Strike is ${nearText}; score is weighted by OI, volume, ATM distance, IV and Greeks.`
+        short: `${row.build.detail}, ${nearText}, ${direction}; ${flowText}.`,
+        detail: `${row.build.label}: OI ${fmtCompact(row.oi)}, Chg OI ${fmtCompact(row.changeOI)}, volume ${fmtCompact(row.volume)}, price chg ${fmt(row.priceChange, 2)}, IV ${pct(row.iv, 2)}. Strike is ${nearText}; ${techText}; score is weighted by OI, volume, option-flow proxy, ATM distance, IV, Greeks and AI memory.`
       };
     }
 
@@ -4721,7 +5001,11 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         mini("CE Chg OI", fmtCompact(a.ceChgOi)),
         mini("PE Chg OI", fmtCompact(a.peChgOi)),
         mini("IV Skew", pct(a.ivSkew, 2)),
-        mini("Gamma Avg", fmt(a.gammaAvg, 5))
+        mini("Gamma Avg", fmt(a.gammaAvg, 5)),
+        mini("Tech Bias", fmt(a.technical.biasScore, 0)),
+        mini("RSI", fmt(a.technical.rsi, 0)),
+        mini("MACD Hist", fmt(a.technical.macdHist, 2)),
+        mini("Top Flow", a.topFlow ? a.topFlow.type + " " + fmt(a.topFlow.strike) : "-")
       ].join("");
       els.levelStats.innerHTML = [
         mini("ATM Strike", fmt(a.atmStrike)),
@@ -4731,6 +5015,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         mini("Upper BE", fmt(a.upperBreak, 2)),
         mini("Lower BE", fmt(a.lowerBreak, 2)),
         mini("Move Needed", pct(a.expectedMovePct, 2)),
+        mini("IV Move", fmt(a.ivExpectedMove, 2)),
         mini("Liquidity", fmt(a.liquidityScore, 0)),
         mini("Volume / OI", fmt(a.volumeOiRatio, 3))
       ].join("");
@@ -4785,7 +5070,9 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         guardItem("Trigger", trigger, directionClass),
         guardItem("Invalidation", invalid, "bad"),
         guardItem("Avoid", avoid, "watch"),
-        guardItem("Max Pain", fmt(a.maxPain.strike) + " / ATM " + fmt(a.atmStrike), "info")
+        guardItem("Max Pain", fmt(a.maxPain.strike) + " / ATM " + fmt(a.atmStrike), "info"),
+        guardItem("Technical", a.technical.biasLabel + " / RSI " + fmt(a.technical.rsi, 0) + " / MA " + fmt(a.technical.smaFast - a.technical.smaSlow, 2), a.technical.className),
+        guardItem("Unusual Flow", a.topFlow ? a.topFlow.type + " " + fmt(a.topFlow.strike) + " score " + fmt(a.topFlow.flowScore, 0) + " / " + a.topFlow.build.label : "No strong volume/OI anomaly", a.topFlow?.flowScore >= 70 ? "watch" : "info")
       ].join("");
     }
 
@@ -4983,6 +5270,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       if (!a) {
         els.strategySummary.innerHTML = `<div class="empty">No strategy data loaded</div>`;
         els.strategyGrid.innerHTML = "";
+        els.payoffChart.innerHTML = `<div class="empty">No payoff data loaded</div>`;
+        els.payoffStats.innerHTML = "";
         els.aiLearningSummary.innerHTML = `<div class="empty">No learning data loaded</div>`;
         els.aiLearningGrid.innerHTML = "";
         return;
@@ -4990,13 +5279,17 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       els.strategySummary.innerHTML = [
         card("Combined Premium", fmt(a.atmPremium, 2), "ATM straddle premium", "info"),
         card("Expected Move", fmt(a.atmPremium, 2), pct(a.expectedMovePct, 2) + " from spot", "info"),
+        card("IV Expected Move", fmt(a.ivExpectedMove, 2), pct(a.ivExpectedMovePct, 2) + " from ATM IV", "info"),
         card("Break-even Range", fmt(a.lowerBreak, 0) + " - " + fmt(a.upperBreak, 0), "ATM premium range", "watch"),
         card("Premium Edge", fmt(a.premiumScore, 0), a.premiumScore >= 62 ? "Theta plus IV favors sellers" : "Gamma or lower IV favors buyers", a.premiumScore >= 62 ? "watch" : "info"),
         card("IV Skew", pct(a.ivSkew, 2), "PE IV minus CE IV", a.ivSkew > 0 ? "good" : "bad"),
-        card("Directional Score", fmt(a.bullish - a.bearish, 0), "Positive bullish, negative bearish", a.bullish >= a.bearish ? "good" : "bad")
+        card("Directional Score", fmt(a.bullish - a.bearish, 0), "Positive bullish, negative bearish", a.bullish >= a.bearish ? "good" : "bad"),
+        card("Technical Context", fmt(a.technical.biasScore, 0), a.technical.detail, a.technical.className),
+        card("Top Flow", a.topFlow ? a.topFlow.type + " " + fmt(a.topFlow.strike) : "-", a.topFlow ? "Volume/OI anomaly score " + fmt(a.topFlow.flowScore, 0) : "No option-flow proxy signal", a.topFlow?.flowScore >= 70 ? "watch" : "info")
       ].join("");
       const strategies = buildStrategies(a);
       els.strategyGrid.innerHTML = strategies.map(renderStrategyCard).join("");
+      renderPayoffVisualizer(a, strategies);
       renderAdaptiveLearning(a);
     }
 
@@ -5091,6 +5384,120 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       return list.slice(0, 4);
     }
 
+    function parseStrategyLeg(leg) {
+      const match = String(leg.text || "").match(/([\d,.]+)\s*(CE|PE)/i);
+      if (!match) return null;
+      return {
+        action: leg.action,
+        strike: asNumber(match[1], 0),
+        type: match[2].toUpperCase()
+      };
+    }
+
+    function legPremium(a, leg) {
+      const contract = a.rows.find(row => row.strike === leg.strike && row.type === leg.type);
+      return Math.max(asNumber(contract?.ltp, 0), 0);
+    }
+
+    function legExpiryPayoff(price, leg) {
+      const intrinsic = leg.type === "CE" ? Math.max(price - leg.strike, 0) : Math.max(leg.strike - price, 0);
+      return leg.action === "BUY" ? intrinsic - leg.premium : leg.premium - intrinsic;
+    }
+
+    function buildPayoffModel(a, strategy) {
+      const legs = strategy.legs.map(parseStrategyLeg).filter(Boolean).map(leg => ({ ...leg, premium: legPremium(a, leg) }));
+      const step = medianStep(a.strikes) || 50;
+      const minLeg = legs.length ? Math.min(...legs.map(leg => leg.strike)) : a.atmStrike;
+      const maxLeg = legs.length ? Math.max(...legs.map(leg => leg.strike)) : a.atmStrike;
+      const minPrice = Math.max(step, Math.floor((Math.min(a.lowerBreak - a.atmPremium, minLeg - step * 4)) / step) * step);
+      const maxPrice = Math.ceil((Math.max(a.upperBreak + a.atmPremium, maxLeg + step * 4)) / step) * step;
+      const points = [];
+      const segments = 72;
+      for (let i = 0; i <= segments; i += 1) {
+        const price = minPrice + ((maxPrice - minPrice) * i) / segments;
+        const pnl = legs.reduce((total, leg) => total + legExpiryPayoff(price, leg), 0);
+        points.push({ price, pnl });
+      }
+      const netCredit = legs.reduce((total, leg) => total + (leg.action === "SELL" ? leg.premium : -leg.premium), 0);
+      const breakEvens = [];
+      for (let i = 1; i < points.length; i += 1) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        if (prev.pnl === 0) breakEvens.push(prev.price);
+        if ((prev.pnl < 0 && curr.pnl > 0) || (prev.pnl > 0 && curr.pnl < 0)) {
+          const ratio = Math.abs(prev.pnl) / (Math.abs(prev.pnl) + Math.abs(curr.pnl));
+          breakEvens.push(prev.price + (curr.price - prev.price) * ratio);
+        }
+      }
+      return {
+        legs,
+        points,
+        netCredit,
+        minPrice,
+        maxPrice,
+        minPnl: Math.min(...points.map(point => point.pnl)),
+        maxPnl: Math.max(...points.map(point => point.pnl)),
+        breakEvens
+      };
+    }
+
+    function renderPayoffSvg(a, model) {
+      const width = 720;
+      const height = 260;
+      const pad = { left: 54, right: 16, top: 18, bottom: 34 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+      const yMin = model.minPnl === model.maxPnl ? model.minPnl - 10 : model.minPnl;
+      const yMax = model.minPnl === model.maxPnl ? model.maxPnl + 10 : model.maxPnl;
+      const yPad = Math.max((yMax - yMin) * 0.12, 5);
+      const minY = yMin - yPad;
+      const maxY = yMax + yPad;
+      const x = price => pad.left + ((price - model.minPrice) / Math.max(model.maxPrice - model.minPrice, 1)) * plotW;
+      const y = pnl => pad.top + (1 - ((pnl - minY) / Math.max(maxY - minY, 1))) * plotH;
+      const pointText = model.points.map(point => `${fmt(x(point.price), 1)},${fmt(y(point.pnl), 1)}`).join(" ");
+      const zeroY = clamp(y(0), pad.top, pad.top + plotH);
+      const spot = asNumber(els.spotInput.value, 0);
+      const spotX = clamp(x(spot), pad.left, pad.left + plotW);
+      const lowerX = clamp(x(a.lowerBreak), pad.left, pad.left + plotW);
+      const upperX = clamp(x(a.upperBreak), pad.left, pad.left + plotW);
+      const gridPrices = [model.minPrice, a.lowerBreak, spot, a.upperBreak, model.maxPrice];
+      return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Strategy payoff chart">
+        <rect x="0" y="0" width="${width}" height="${height}" rx="8" fill="transparent"></rect>
+        ${[0.25, 0.5, 0.75].map(t => `<line class="payoff-grid-line" x1="${pad.left}" y1="${pad.top + plotH * t}" x2="${pad.left + plotW}" y2="${pad.top + plotH * t}"></line>`).join("")}
+        ${gridPrices.map(price => `<line class="payoff-grid-line" x1="${x(price)}" y1="${pad.top}" x2="${x(price)}" y2="${pad.top + plotH}"></line>`).join("")}
+        <line class="payoff-axis" x1="${pad.left}" y1="${zeroY}" x2="${pad.left + plotW}" y2="${zeroY}"></line>
+        <polyline class="payoff-line" points="${pointText}"></polyline>
+        <line class="payoff-marker expected" x1="${lowerX}" y1="${pad.top}" x2="${lowerX}" y2="${pad.top + plotH}"></line>
+        <line class="payoff-marker expected" x1="${upperX}" y1="${pad.top}" x2="${upperX}" y2="${pad.top + plotH}"></line>
+        <line class="payoff-marker" x1="${spotX}" y1="${pad.top}" x2="${spotX}" y2="${pad.top + plotH}"></line>
+        <text class="payoff-label" x="${pad.left}" y="${height - 10}">${fmt(model.minPrice, 0)}</text>
+        <text class="payoff-label" x="${spotX - 18}" y="${height - 10}">Spot</text>
+        <text class="payoff-label" x="${pad.left + plotW - 42}" y="${height - 10}">${fmt(model.maxPrice, 0)}</text>
+        <text class="payoff-label" x="8" y="${y(model.maxPnl) + 4}">+${fmt(model.maxPnl, 0)}</text>
+        <text class="payoff-label" x="8" y="${y(model.minPnl) + 4}">${fmt(model.minPnl, 0)}</text>
+      </svg>`;
+    }
+
+    function renderPayoffVisualizer(a, strategies) {
+      const strategy = strategies[0];
+      if (!strategy) {
+        els.payoffChart.innerHTML = `<div class="empty">No strategy selected</div>`;
+        els.payoffStats.innerHTML = "";
+        return;
+      }
+      const model = buildPayoffModel(a, strategy);
+      els.payoffChart.innerHTML = renderPayoffSvg(a, model);
+      const be = model.breakEvens.length ? model.breakEvens.slice(0, 3).map(value => fmt(value, 0)).join(", ") : "-";
+      els.payoffStats.innerHTML = [
+        guardItem("Strategy", strategy.title, strategy.className),
+        guardItem("Net Premium", (model.netCredit >= 0 ? "Credit " : "Debit ") + fmt(Math.abs(model.netCredit), 2), model.netCredit >= 0 ? "good" : "watch"),
+        guardItem("Max P/L Range", "+" + fmt(model.maxPnl, 2) + " / " + fmt(model.minPnl, 2), model.maxPnl > Math.abs(model.minPnl) ? "good" : "watch"),
+        guardItem("Break-even", be, "info"),
+        guardItem("Expected Range", fmt(a.lowerBreak, 0) + " - " + fmt(a.upperBreak, 0), "watch"),
+        guardItem("Basis", "Expiry payoff per one option unit, before brokerage and slippage.", "info")
+      ].join("");
+    }
+
     function medianStep(strikes) {
       const diffs = [];
       for (let i = 1; i < strikes.length; i += 1) {
@@ -5114,6 +5521,43 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         </div>
         <div class="setup">${escapeHtml(item.setup)}</div>
       </article>`;
+    }
+
+    function ageLabel(date) {
+      if (!date) return "-";
+      const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+      if (seconds < 60) return seconds + "s";
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return minutes + "m";
+      const hours = Math.floor(minutes / 60);
+      const rest = minutes % 60;
+      return hours + "h " + String(rest).padStart(2, "0") + "m";
+    }
+
+    function feedAgeClass() {
+      if (!state.contracts.length || !state.lastUpdated) return "bad";
+      const market = marketStatus();
+      const ageMinutes = (Date.now() - state.lastUpdated.getTime()) / 60000;
+      if (!market.isOpen) return ageMinutes <= 1440 ? "info" : "watch";
+      if (ageMinutes <= 3) return "good";
+      if (ageMinutes <= 10) return "watch";
+      return "bad";
+    }
+
+    function renderFeedHealth() {
+      if (!els.feedHealthGrid) return;
+      const connected = state.contracts.length > 0;
+      const checked = state.lastCheckedAt ? formatIstClock(state.lastCheckedAt) : "-";
+      const changed = state.lastUpdated ? formatIstClock(state.lastUpdated) : "-";
+      const feedLabel = connected ? dataSourceLabel() : "No feed";
+      els.feedHealthGrid.innerHTML = [
+        card("Feed", connected ? "Connected" : "Missing", feedLabel, connected ? "good" : "bad"),
+        card("Data Changed", changed, "Only moves when DAT/options data changes", feedAgeClass()),
+        card("Last Checked", checked, "Refresh check time", state.lastCheckedAt ? "info" : "watch"),
+        card("Feed Age", ageLabel(state.lastUpdated), marketStatus().isOpen ? "Market-time freshness" : "Market closed / last saved data", feedAgeClass()),
+        card("Fallbacks", "2 feeds", "Raw GitHub plus Pages DAT", "info"),
+        card("Spot History", fmt(state.spotHistory.length), "Used for MA, RSI, Bollinger, MACD", state.spotHistory.length >= 5 ? "good" : "watch")
+      ].join("");
     }
 
     function renderDataPreview() {
@@ -5154,6 +5598,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       renderChain();
       renderStrategy();
       renderDataPreview();
+      renderFeedHealth();
       renderSnapshot();
     }
 
@@ -5203,6 +5648,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
           contracts: state.contracts.map(snapshotContract),
           sourceName: state.sourceName,
           lastUpdated: state.lastUpdated ? state.lastUpdated.toISOString() : null,
+          lastCheckedAt: state.lastCheckedAt ? state.lastCheckedAt.toISOString() : null,
           dataSignature: state.dataSignature,
           refreshCount: state.refreshCount
         }));
@@ -5223,6 +5669,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       state.contracts = enrichContracts(snapshot.contracts);
       state.sourceName = snapshot.sourceName || "Last saved NSE snapshot";
       state.lastUpdated = reviveDate(snapshot.lastUpdated) || new Date();
+      state.lastCheckedAt = reviveDate(snapshot.lastCheckedAt) || state.lastUpdated;
       state.dataSignature = snapshot.dataSignature || contractsDataSignature(state.contracts);
       state.refreshCount = Number(snapshot.refreshCount) || 0;
       state.lastAutoError = "";
@@ -5239,10 +5686,14 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       state.contracts = nextContracts;
       updateSpotFromContracts(state.contracts);
       state.sourceName = sourceName;
+      state.lastCheckedAt = new Date();
       if (dataChanged || !state.lastUpdated) {
-        state.lastUpdated = new Date();
+        state.lastUpdated = state.lastCheckedAt;
       }
       state.dataSignature = nextSignature;
+      if (dataChanged || !state.spotHistory.length) {
+        recordSpotHistory(asNumber(els.spotInput.value, 0), state.lastUpdated);
+      }
       state.lastAutoError = "";
       populateExpirySelect();
       analyse();
