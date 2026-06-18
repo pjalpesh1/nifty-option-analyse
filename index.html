@@ -2168,7 +2168,7 @@
           <button type="button" class="btn live" id="autoToggleBtn"><span class="icon clock"></span><span id="autoButtonText">Auto Start</span></button>
           <button type="button" class="btn" id="alertToggleBtn"><span class="icon bell"></span><span id="alertButtonText">Alerts Off</span></button>
           <span class="auto-countdown" id="autoCountdown">Auto off</span>
-          <input id="fileInput" class="hidden" type="file" accept=".json,.csv,.txt">
+          <input id="fileInput" class="hidden" type="file" accept=".json,.csv,.dat,.txt">
         </div>
       </div>
     </section>
@@ -2431,12 +2431,12 @@
           <section class="panel">
             <div class="panel-head">
               <h2>Import</h2>
-              <span>JSON or CSV</span>
+              <span>JSON, CSV or DAT</span>
             </div>
             <div class="panel-body stack">
               <div class="field">
-                <label for="sourceUrlInput">NSE Option Chain URL</label>
-                <input id="sourceUrlInput" type="url" placeholder="https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY">
+                <label for="sourceUrlInput">NSE Option Chain / DAT File URL</label>
+                <input id="sourceUrlInput" type="url" placeholder="https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY or https://your-site.com/nifty-options.dat">
               </div>
               <div class="actions">
                 <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
@@ -2466,7 +2466,7 @@
                 </div>
                 <div class="guard-item info">
                   <span>Default URL</span>
-                  <b>Use https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY or your own NSE proxy URL.</b>
+                  <b>Use https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY, your NSE proxy URL, or a hosted .dat data-file URL.</b>
                 </div>
                 <div class="guard-item bad">
                   <span>Browser Limit</span>
@@ -2474,7 +2474,11 @@
                 </div>
                 <div class="guard-item good">
                   <span>Feed URL</span>
-                  <b>Paste the NSE site URL or NSE proxy JSON/CSV feed URL above and press Load URL.</b>
+                  <b>Paste the NSE site URL, NSE proxy URL, or HTTPS .dat file URL above and press Load URL.</b>
+                </div>
+                <div class="guard-item info">
+                  <span>DAT Auto</span>
+                  <b>Auto Start can refresh a hosted .dat file URL. Local uploaded files are one-time imports and cannot auto-reread after changes.</b>
                 </div>
                 <div class="guard-item info">
                   <span>Auto</span>
@@ -2498,12 +2502,17 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
           <section class="panel">
             <div class="panel-head">
               <h2>Accepted Columns</h2>
-              <span>NSE JSON or flat CSV</span>
+              <span>NSE JSON, CSV, pipe DAT or tab DAT</span>
             </div>
             <div class="panel-body stack">
-              <pre class="sample-format">expiryDate,strikePrice,optionType,openInterest,changeinOpenInterest,lastPrice,change,impliedVolatility,delta,gamma,theta,totalTradedVolume
+              <pre class="sample-format">CSV:
+expiryDate,strikePrice,optionType,openInterest,changeinOpenInterest,lastPrice,change,impliedVolatility,delta,gamma,theta,totalTradedVolume
 27-Jun-2026,24100,CE,125430,8400,142.5,18.2,13.8,0.54,0.0019,-8.2,25560
-27-Jun-2026,24100,PE,113870,-2200,91.7,-11.5,14.1,-0.46,0.0018,-7.6,21980</pre>
+27-Jun-2026,24100,PE,113870,-2200,91.7,-11.5,14.1,-0.46,0.0018,-7.6,21980
+
+DAT pipe format:
+expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|change|impliedVolatility|delta|gamma|theta|totalTradedVolume
+27-Jun-2026|24100|CE|125430|8400|142.5|18.2|13.8|0.54|0.0019|-8.2|25560</pre>
               <div class="table-wrap">
                 <table id="dataPreviewTable">
                   <thead>
@@ -3048,7 +3057,16 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
       return contracts;
     }
 
+    function detectDelimiter(text) {
+      const firstLine = text.split(/\r?\n/).find(line => line.trim()) || "";
+      const candidates = [",", "|", "\t", ";"];
+      return candidates
+        .map(delimiter => ({ delimiter, count: firstLine.split(delimiter).length - 1 }))
+        .sort((a, b) => b.count - a.count)[0]?.delimiter || ",";
+    }
+
     function parseCsv(text) {
+      const delimiter = detectDelimiter(text);
       const rows = [];
       let current = [];
       let cell = "";
@@ -3061,7 +3079,7 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
           i += 1;
         } else if (ch === '"') {
           quoted = !quoted;
-        } else if (ch === "," && !quoted) {
+        } else if (ch === delimiter && !quoted) {
           current.push(cell);
           cell = "";
         } else if ((ch === "\n" || ch === "\r") && !quoted) {
@@ -3126,10 +3144,21 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
 
     function dataSourceLabel() {
       if (!state.dataSource) return "NSE feed missing";
-      if (state.dataSource.kind === "url") return isOfficialNseUrl(state.dataSource.url) ? "NSE site option chain" : "NSE proxy feed";
+      if (state.dataSource.kind === "url") {
+        if (isDatUrl(state.dataSource.url)) return "NSE DAT file feed";
+        return isOfficialNseUrl(state.dataSource.url) ? "NSE site option chain" : "NSE proxy feed";
+      }
       if (state.dataSource.kind === "file") return state.dataSource.name || "Uploaded file";
       if (state.dataSource.kind === "paste") return "Pasted data";
       return "NSE option-chain feed";
+    }
+
+    function isDatUrl(url) {
+      try {
+        return /\.dat(?:$|[?#])/i.test(new URL(url, window.location.href).pathname);
+      } catch (error) {
+        return /\.dat(?:$|[?#])/i.test(String(url || ""));
+      }
     }
 
     function isOfficialNseUrl(url) {
@@ -3413,13 +3442,13 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
     function friendlyFetchError(error) {
       const raw = String(error?.message || error || "Unknown error");
       if (/failed to fetch|networkerror|load failed/i.test(raw)) {
-        return "NSE URL blocked or offline. Direct NSE browser fetch can be blocked by CORS/cookies; use an HTTPS NSE proxy with CORS enabled.";
+        return "NSE/DAT URL blocked or offline. Direct NSE browser fetch can be blocked by CORS/cookies; use an HTTPS NSE proxy or hosted .dat file with CORS enabled.";
       }
       if (/mixed content/i.test(raw)) {
-        return "HTTP NSE URL blocked on HTTPS page. Use an HTTPS feed or cloud proxy.";
+        return "HTTP NSE/DAT URL blocked on HTTPS page. Use an HTTPS feed or cloud proxy.";
       }
       if (/url 401|url 403|url 404/i.test(raw)) {
-        return raw + ". NSE site requests may need website session cookies; use an NSE proxy if direct Load URL fails.";
+        return raw + ". NSE site requests may need website session cookies. For DAT mode, confirm the .dat file URL exists and is public.";
       }
       return raw;
     }
@@ -3665,11 +3694,11 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
         <div>
           <span class="badge watch">Live data required</span>
           <h2>No option-chain data loaded yet</h2>
-          <p>This GitHub Pages site is the scanner interface. It loads NIFTY option-chain data from the official NSE JSON URL or from your NSE proxy feed.</p>
+          <p>This GitHub Pages site is the scanner interface. It loads NIFTY option-chain data from the official NSE JSON URL, your NSE proxy feed, or a hosted .dat data file.</p>
         </div>
         <div class="connect-steps">
           <div class="connect-step"><span>Step 1</span><b>Open Data tab. The default source is NSE NIFTY option-chain JSON.</b></div>
-          <div class="connect-step"><span>Step 2</span><b>Press Load URL. If NSE blocks direct browser access, paste your NSE proxy URL.</b></div>
+          <div class="connect-step"><span>Step 2</span><b>Press Load URL. If NSE blocks direct browser access, paste your NSE proxy URL or hosted .dat URL.</b></div>
           <div class="connect-step"><span>Step 3</span><b>Press Auto Start. It refreshes during NSE market time and shows cached data after reload.</b></div>
         </div>
         <div class="connect-actions">
@@ -3790,7 +3819,7 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
       els.scannerSubtitle.textContent = filtered.length + " near-ATM buy signals above score " + minScore;
       const emptyScannerText = state.contracts.length
         ? "No CE/PE buy signals match the current filters."
-        : "No NSE option data loaded. Open Data tab and load the NSE option-chain URL.";
+        : "No NSE option data loaded. Open Data tab and load the NSE option-chain URL, proxy URL, or .dat file URL.";
       els.scannerTable.innerHTML = filtered.map(row => `
         <tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
           <td class="left" data-label="Setup"><span class="badge ${row.build.className}">${escapeHtml(row.build.label)}</span></td>
@@ -3812,7 +3841,7 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
 
     function renderMobileScannerCards(rows) {
       if (!rows.length) {
-        els.scannerMobileCards.innerHTML = `<div class="empty">${state.contracts.length ? "No near-ATM scanner results. Lower score or clear filter." : "No NSE option data loaded. Use Data tab to load the NSE option-chain URL."}</div>`;
+        els.scannerMobileCards.innerHTML = `<div class="empty">${state.contracts.length ? "No near-ATM scanner results. Lower score or clear filter." : "No NSE option data loaded. Use Data tab to load the NSE option-chain URL or .dat file URL."}</div>`;
         return;
       }
       els.scannerMobileCards.innerHTML = `<div class="scanner-mobile-tip">Tap any card to flip details</div>` + rows.map(row => {
@@ -4733,7 +4762,7 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
           <td data-label="Delta">${fmt(c.delta, 3)}</td>
           <td data-label="Gamma">${fmt(c.gamma, 5)}</td>
           <td data-label="Theta">${fmt(c.theta, 2)}</td>
-        </tr>`).join("") || `<tr><td class="left" colspan="10">No NSE data loaded. Use the NSE option-chain URL in Data tab.</td></tr>`;
+        </tr>`).join("") || `<tr><td class="left" colspan="10">No NSE data loaded. Use the NSE option-chain URL, proxy URL, or .dat file URL in Data tab.</td></tr>`;
     }
 
     function renderSnapshot() {
