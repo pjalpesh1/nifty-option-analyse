@@ -2088,7 +2088,7 @@
           <div class="brand-mark" aria-hidden="true">NF</div>
           <div class="brand-title">
             <h1>NIFTY Option Analyse Pro</h1>
-            <span id="dataStatus">Angel One feed not connected</span>
+            <span id="dataStatus">NSE data feed not connected</span>
           </div>
         </div>
         <div class="market-strip" aria-label="Market snapshot">
@@ -2435,8 +2435,8 @@
             </div>
             <div class="panel-body stack">
               <div class="field">
-                <label for="sourceUrlInput">Angel One Backend Feed URL</label>
-                <input id="sourceUrlInput" type="url" placeholder="https://your-secure-backend.com/angel-nifty-options.json">
+                <label for="sourceUrlInput">NSE Option Chain URL</label>
+                <input id="sourceUrlInput" type="url" placeholder="https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY">
               </div>
               <div class="actions">
                 <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
@@ -2455,41 +2455,43 @@
 
           <section class="panel">
             <div class="panel-head">
-              <h2>Angel One Live Setup</h2>
-              <span>SmartAPI proxy required</span>
+              <h2>NSE Site Data Setup</h2>
+              <span>NSE option-chain source</span>
             </div>
             <div class="panel-body stack">
               <div class="guard-list">
                 <div class="guard-item watch">
-                  <span>Status</span>
-                  <b>SmartAPI page check: No Apps Added. Add one app first to generate API credentials.</b>
+                  <span>Official Page</span>
+                  <b>NSE option-chain page supports NIFTY, NIFTYNXT50, FINNIFTY, BANKNIFTY, and MIDCPNIFTY contracts.</b>
                 </div>
                 <div class="guard-item info">
-                  <span>App Form</span>
-                  <b>Use App Name, Redirect URL, and Primary Static IP from your secure backend/cloud server.</b>
+                  <span>Default URL</span>
+                  <b>Use https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY or your own NSE proxy URL.</b>
                 </div>
                 <div class="guard-item bad">
-                  <span>Security</span>
-                  <b>Do not enter Angel password, PIN, TOTP, API key, JWT, or feed token inside this public webpage.</b>
+                  <span>Browser Limit</span>
+                  <b>If direct NSE fetch is blocked by CORS/cookies, use a small HTTPS proxy that returns the same NSE JSON.</b>
                 </div>
                 <div class="guard-item good">
                   <span>Feed URL</span>
-                  <b>Deploy a backend proxy, then paste its HTTPS JSON/CSV feed URL above and press Load URL.</b>
+                  <b>Paste the NSE site URL or NSE proxy JSON/CSV feed URL above and press Load URL.</b>
                 </div>
                 <div class="guard-item info">
                   <span>Auto</span>
-                  <b>Auto Start requires this feed URL, can poll every 1 second, and runs only during NSE regular market time.</b>
+                  <b>Auto Start refreshes the NSE source during regular market time and pauses outside market hours.</b>
                 </div>
                 <div class="guard-item good">
                   <span>Market Time</span>
                   <b>Scanner auto-update uses India time: Monday-Friday, 09:15 to 15:30 IST, and skips the loaded NSE 2026 trading holidays.</b>
                 </div>
               </div>
-              <pre class="sample-format">Expected proxy output:
+              <pre class="sample-format">Accepted NSE/proxy output:
 [
   {"expiry":"2026-06-25","strike":24100,"type":"CE","oi":125430,"changeOI":8400,"ltp":142.5,"priceChange":18.2,"iv":13.8,"delta":0.54,"gamma":0.0019,"theta":-8.2,"volume":25560},
   {"expiry":"2026-06-25","strike":24100,"type":"PE","oi":113870,"changeOI":-2200,"ltp":91.7,"priceChange":-11.5,"iv":14.1,"delta":-0.46,"gamma":0.0018,"theta":-7.6,"volume":21980}
-]</pre>
+]
+
+Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.</pre>
             </div>
           </section>
 
@@ -2532,10 +2534,11 @@
   <script>
     const AUTO_INTERVAL_OPTIONS = [1000, 5000, 15000, 60000, 300000, 900000, 3600000];
     const DEFAULT_AUTO_INTERVAL_MS = 1000;
-    const AUTO_INTERVAL_KEY = "niftyAngelAutoIntervalMs";
-    const AUTO_ENABLED_KEY = "niftyAngelAutoEnabled";
-    const DATA_SOURCE_URL_KEY = "niftyAngelFeedUrl";
-    const SNAPSHOT_CACHE_KEY = "niftyAngelLastSnapshot";
+    const DEFAULT_NSE_OPTION_CHAIN_URL = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY";
+    const AUTO_INTERVAL_KEY = "niftyNseAutoIntervalMs";
+    const AUTO_ENABLED_KEY = "niftyNseAutoEnabled";
+    const DATA_SOURCE_URL_KEY = "niftyNseFeedUrl";
+    const SNAPSHOT_CACHE_KEY = "niftyNseLastSnapshot";
     const POSITION_HISTORY_KEY = "niftyPaperPositionHistory";
     const MARKET_TIMEZONE = "Asia/Kolkata";
     const MARKET_OPEN_MINUTES = 9 * 60 + 15;
@@ -2598,9 +2601,9 @@
 
     function storedFeedUrl() {
       try {
-        return localStorage.getItem(DATA_SOURCE_URL_KEY) || "";
+        return localStorage.getItem(DATA_SOURCE_URL_KEY) || DEFAULT_NSE_OPTION_CHAIN_URL;
       } catch (error) {
-        return "";
+        return DEFAULT_NSE_OPTION_CHAIN_URL;
       }
     }
 
@@ -2653,7 +2656,7 @@
       selectedExpiry: "auto",
       analysis: [],
       activeAnalysis: null,
-      sourceName: "Angel One feed not connected",
+      sourceName: "NSE data feed not connected",
       lastUpdated: null,
       dataSource: null,
       autoEnabled: false,
@@ -2774,8 +2777,6 @@
       }
       const raw = String(input).trim();
       if (!raw) return "";
-      const direct = new Date(raw);
-      if (!Number.isNaN(direct.getTime())) return direct.toISOString().slice(0, 10);
       const months = {
         jan: "01",
         feb: "02",
@@ -2800,6 +2801,14 @@
       if (dmy) {
         const year = dmy[3].length === 2 ? "20" + dmy[3] : dmy[3];
         return year + "-" + String(dmy[2]).padStart(2, "0") + "-" + String(dmy[1]).padStart(2, "0");
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      const direct = new Date(raw);
+      if (!Number.isNaN(direct.getTime())) {
+        const year = direct.getFullYear();
+        const month = String(direct.getMonth() + 1).padStart(2, "0");
+        const day = String(direct.getDate()).padStart(2, "0");
+        return year + "-" + month + "-" + day;
       }
       return raw;
     }
@@ -3102,6 +3111,8 @@
       if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
         const json = JSON.parse(trimmed);
         if (Array.isArray(json)) return enrichContracts(json);
+        const nseSpot = asNumber(json?.records?.underlyingValue ?? json?.filtered?.underlyingValue ?? json?.underlyingValue);
+        if (nseSpot > 0) els.spotInput.value = nseSpot;
         return enrichContracts(parseNseJson(json));
       }
       return enrichContracts(parseCsv(trimmed));
@@ -3114,11 +3125,19 @@
     }
 
     function dataSourceLabel() {
-      if (!state.dataSource) return "Angel One feed missing";
-      if (state.dataSource.kind === "url") return "Angel One live feed";
+      if (!state.dataSource) return "NSE feed missing";
+      if (state.dataSource.kind === "url") return isOfficialNseUrl(state.dataSource.url) ? "NSE site option chain" : "NSE proxy feed";
       if (state.dataSource.kind === "file") return state.dataSource.name || "Uploaded file";
       if (state.dataSource.kind === "paste") return "Pasted data";
-      return "Angel One feed";
+      return "NSE option-chain feed";
+    }
+
+    function isOfficialNseUrl(url) {
+      try {
+        return new URL(url, window.location.href).hostname.endsWith("nseindia.com");
+      } catch (error) {
+        return false;
+      }
     }
 
     function cacheBustUrl(url) {
@@ -3300,8 +3319,8 @@
         setDataSource({ kind: "url", url: typedUrl, label: "URL" });
       }
       if (state.dataSource?.kind !== "url") {
-        state.lastAutoError = "Auto error: Angel One backend feed URL required";
-        els.importStatus.innerHTML = `<span class="badge bad">Angel feed needed</span><span>Paste your secure Angel One backend HTTPS JSON/CSV feed URL in Data tab, then press Load URL.</span>`;
+        state.lastAutoError = "Auto error: NSE option-chain URL required";
+        els.importStatus.innerHTML = `<span class="badge bad">NSE feed needed</span><span>Open Data tab, keep the NSE URL or paste your NSE proxy URL, then press Load URL.</span>`;
         updateAutoControls();
         activateView("dataView");
         return;
@@ -3372,9 +3391,9 @@
           const response = await fetch(cacheBustUrl(state.dataSource.url), { cache: "no-store" });
           if (!response.ok) throw new Error("URL " + response.status);
           contracts = parseInput(await response.text());
-          sourceName = "Angel One live feed";
+          sourceName = dataSourceLabel();
         } else {
-          throw new Error("Angel One backend feed URL required");
+          throw new Error("NSE option-chain URL required");
         }
         if (!contracts.length) throw new Error("No contracts loaded");
         state.refreshCount += 1;
@@ -3394,10 +3413,13 @@
     function friendlyFetchError(error) {
       const raw = String(error?.message || error || "Unknown error");
       if (/failed to fetch|networkerror|load failed/i.test(raw)) {
-        return "Live URL blocked or offline. Use an HTTPS JSON/CSV feed with CORS enabled for this GitHub Pages site.";
+        return "NSE URL blocked or offline. Direct NSE browser fetch can be blocked by CORS/cookies; use an HTTPS NSE proxy with CORS enabled.";
       }
       if (/mixed content/i.test(raw)) {
-        return "HTTP live URL blocked on HTTPS page. Use an HTTPS feed or cloud proxy.";
+        return "HTTP NSE URL blocked on HTTPS page. Use an HTTPS feed or cloud proxy.";
+      }
+      if (/url 401|url 403|url 404/i.test(raw)) {
+        return raw + ". NSE site requests may need website session cookies; use an NSE proxy if direct Load URL fails.";
       }
       return raw;
     }
@@ -3643,11 +3665,11 @@
         <div>
           <span class="badge watch">Live data required</span>
           <h2>No option-chain data loaded yet</h2>
-          <p>This GitHub Pages site is only the scanner interface. It needs your secure Angel One backend JSON/CSV feed URL before NIFTY option data, signals, and positions can appear.</p>
+          <p>This GitHub Pages site is the scanner interface. It loads NIFTY option-chain data from the official NSE JSON URL or from your NSE proxy feed.</p>
         </div>
         <div class="connect-steps">
-          <div class="connect-step"><span>Step 1</span><b>Create/run your Angel One SmartAPI backend feed.</b></div>
-          <div class="connect-step"><span>Step 2</span><b>Paste the HTTPS feed URL in the Data tab and press Load URL.</b></div>
+          <div class="connect-step"><span>Step 1</span><b>Open Data tab. The default source is NSE NIFTY option-chain JSON.</b></div>
+          <div class="connect-step"><span>Step 2</span><b>Press Load URL. If NSE blocks direct browser access, paste your NSE proxy URL.</b></div>
           <div class="connect-step"><span>Step 3</span><b>Press Auto Start. It refreshes during NSE market time and shows cached data after reload.</b></div>
         </div>
         <div class="connect-actions">
@@ -3768,7 +3790,7 @@
       els.scannerSubtitle.textContent = filtered.length + " near-ATM buy signals above score " + minScore;
       const emptyScannerText = state.contracts.length
         ? "No CE/PE buy signals match the current filters."
-        : "No live option data loaded. Open Data tab and load your Angel One backend feed URL.";
+        : "No NSE option data loaded. Open Data tab and load the NSE option-chain URL.";
       els.scannerTable.innerHTML = filtered.map(row => `
         <tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
           <td class="left" data-label="Setup"><span class="badge ${row.build.className}">${escapeHtml(row.build.label)}</span></td>
@@ -3790,7 +3812,7 @@
 
     function renderMobileScannerCards(rows) {
       if (!rows.length) {
-        els.scannerMobileCards.innerHTML = `<div class="empty">${state.contracts.length ? "No near-ATM scanner results. Lower score or clear filter." : "No live option data loaded. Add your Angel One feed URL in Data tab."}</div>`;
+        els.scannerMobileCards.innerHTML = `<div class="empty">${state.contracts.length ? "No near-ATM scanner results. Lower score or clear filter." : "No NSE option data loaded. Use Data tab to load the NSE option-chain URL."}</div>`;
         return;
       }
       els.scannerMobileCards.innerHTML = `<div class="scanner-mobile-tip">Tap any card to flip details</div>` + rows.map(row => {
@@ -4271,7 +4293,7 @@
           card("Position", "Flat", state.lastPositionExitKey ? "Last signal closed" : "No active virtual trade", "neutral"),
           card("Refresh", formatInterval(state.autoIntervalMs), state.autoEnabled ? "Auto scanner running" : "Auto scanner off", state.autoEnabled ? "good" : "watch")
         ].join("");
-        els.positionCard.innerHTML = `<div class="empty">${state.autoEnabled ? "Waiting for the next Angel One feed update to open a virtual position at current LTP." : "Load your Angel One backend feed URL, then press Auto Start to track the next virtual position from live data."}</div>`;
+        els.positionCard.innerHTML = `<div class="empty">${state.autoEnabled ? "Waiting for the next NSE feed update to open a virtual position at current LTP." : "Load the NSE option-chain URL, then press Auto Start to track the next virtual position from live data."}</div>`;
       } else {
         const pnl = positionPnl(position);
         const statusClass = position.status === "OPEN" ? pnl.className : "watch";
@@ -4711,7 +4733,7 @@
           <td data-label="Delta">${fmt(c.delta, 3)}</td>
           <td data-label="Gamma">${fmt(c.gamma, 5)}</td>
           <td data-label="Theta">${fmt(c.theta, 2)}</td>
-        </tr>`).join("") || `<tr><td class="left" colspan="10">No live data loaded. Add your Angel One backend feed URL in Data tab.</td></tr>`;
+        </tr>`).join("") || `<tr><td class="left" colspan="10">No NSE data loaded. Use the NSE option-chain URL in Data tab.</td></tr>`;
     }
 
     function renderSnapshot() {
@@ -4779,13 +4801,13 @@
       const snapshot = storedSnapshot();
       if (!snapshot?.contracts?.length) return false;
       state.contracts = enrichContracts(snapshot.contracts);
-      state.sourceName = snapshot.sourceName || "Last saved Angel One snapshot";
+      state.sourceName = snapshot.sourceName || "Last saved NSE snapshot";
       state.lastUpdated = reviveDate(snapshot.lastUpdated) || new Date();
       state.refreshCount = Number(snapshot.refreshCount) || 0;
       state.lastAutoError = "";
       populateExpirySelect();
       analyse();
-      els.importStatus.innerHTML = `<span class="badge watch">Cached data</span><span>Showing last saved ${state.contracts.length} contracts from ${formatIstClock(state.lastUpdated)}. Auto Start will refresh from Angel One when market is open.</span>`;
+      els.importStatus.innerHTML = `<span class="badge watch">Cached data</span><span>Showing last saved ${state.contracts.length} contracts from ${formatIstClock(state.lastUpdated)}. Auto Start will refresh from NSE when market is open.</span>`;
       return true;
     }
 
@@ -4915,7 +4937,7 @@
       populateExpirySelect();
       renderAll();
       if (hasSavedFeed) {
-        els.importStatus.innerHTML = `<span class="badge watch">Feed saved</span><span>Saved Angel One feed URL found. Press Load URL for manual refresh or Auto Start during market hours.</span>`;
+        els.importStatus.innerHTML = `<span class="badge watch">NSE source ready</span><span>NSE option-chain URL is ready. Press Load URL for manual refresh or Auto Start during market hours.</span>`;
       }
     }
     if (hasSavedFeed && !hasCachedData) {
