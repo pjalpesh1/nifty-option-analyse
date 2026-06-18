@@ -13,4 +13,6 @@ The dashboard runs as a static GitHub Pages website, but Angel One credentials m
 
 The browser remembers the last feed URL, Auto Start preference, and last successful option-chain snapshot locally, so reopening the site can still show the last saved data while waiting for the next live refresh.
 
+If the dashboard shows no data, the browser has no saved Angel One feed/cached snapshot yet, or the saved feed URL is unreachable/CORS-blocked. Open the Data tab, load the backend feed URL, then use Auto Start.
+
 Do not store Angel One API key, secret, JWT, feed token, PIN, password, or TOTP in this static page.
