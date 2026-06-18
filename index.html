@@ -2263,7 +2263,7 @@
             <div class="panel-body stack">
               <div class="field">
                 <label for="sourceUrlInput">Live JSON / CSV URL</label>
-                <input id="sourceUrlInput" type="url" placeholder="http://localhost:5000/option-chain.json">
+                <input id="sourceUrlInput" type="url" placeholder="https://your-cloud-feed.com/option-chain.json">
               </div>
               <div class="actions">
                 <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
@@ -2334,15 +2334,18 @@
       selectedExpiry: "auto",
       analysis: [],
       activeAnalysis: null,
-      sourceName: "Demo",
+      sourceName: "Paper live",
       lastUpdated: null,
-      dataSource: { kind: "demo", label: "Demo" },
+      dataSource: { kind: "demo", label: "Paper live" },
       autoEnabled: false,
       autoTimerId: null,
       autoIntervalMs: storedAutoIntervalMs(),
       nextUpdateAt: null,
       updateInFlight: false,
       lastAutoError: "",
+      refreshCount: 0,
+      demoTick: 0,
+      demoBaseSpot: 24085,
       alertsEnabled: false,
       lastSignalKey: "",
       signalHistory: [],
@@ -2565,10 +2568,20 @@
       state.selectedExpiry = els.expirySelect.value;
     }
 
-    function buildDemoData() {
+    function buildDemoData(options = {}) {
       const weekly = "2026-06-25";
       const monthly = "2026-06-30";
-      const spot = 24085;
+      const tick = asNumber(options.tick, 0);
+      const live = Boolean(options.live);
+      if (live && tick <= 1) {
+        state.demoBaseSpot = asNumber(els.spotInput.value, state.demoBaseSpot || 24085);
+      }
+      const liveWave = live ? Math.sin(tick * 0.9) : 0;
+      const livePulse = live ? (0.5 + Math.abs(liveWave) * 0.5) : 0;
+      const liveMove = live ? liveWave * 24 + Math.sin(tick * 0.37) * 8 : 0;
+      const spot = Number(((state.demoBaseSpot || 24085) + liveMove).toFixed(2));
+      if (live) els.spotInput.value = spot;
+      const liveAtm = Math.round(spot / 50) * 50;
       const strikes = [];
       for (let strike = 23400; strike <= 24800; strike += 50) strikes.push(strike);
       const all = [];
@@ -2598,8 +2611,8 @@
           const putOi = Math.round(((52000 + distance * 58) * atmWeight * supportBoost + (below ? 23000 : 0)) * oiFactor * monthlyPeTilt * weeklyPeTilt);
           let callChg = Math.round(((above ? 7800 : -1600) + (strike === 23750 ? 15500 : 0) - (strike < 23400 ? 2800 : 0)) * atmWeight * chgFactor * (isMonthly ? monthlyCeTilt : weeklyCeTilt));
           let putChg = Math.round(((below ? 8200 : -1200) + (strike === 23400 ? 13200 : 0) - (strike > 23800 ? 2400 : 0)) * atmWeight * chgFactor * (isMonthly ? monthlyPeTilt : weeklyPeTilt));
-          const callLtp = Math.max(3.5, callIntrinsic + baseTime - distance * 0.052 + (above ? -12 : 0));
-          const putLtp = Math.max(3.5, putIntrinsic + baseTime - distance * 0.049 + (below ? -10 : 0));
+          let callLtp = Math.max(3.5, callIntrinsic + baseTime - distance * 0.052 + (above ? -12 : 0));
+          let putLtp = Math.max(3.5, putIntrinsic + baseTime - distance * 0.049 + (below ? -10 : 0));
           let callChange = callChg > 0 && above ? -8 - distance / 220 : (below ? 10 - distance / 260 : 4);
           let putChange = putChg > 0 && below ? -7 - distance / 230 : (above ? 9 - distance / 250 : -3);
           if (!isMonthly && (strike === 24100 || strike === 24150)) {
@@ -2613,6 +2626,25 @@
           if (isMonthly && (strike === 24150 || strike === 24200)) {
             putChg = Math.round((9800 + (strike === 24200 ? 2200 : 0)) * atmWeight);
             putChange = 8.1 + atmWeight * 4.4;
+          }
+          if (live && Math.abs(strike - liveAtm) <= 50) {
+            if (liveWave >= 0) {
+              callChg = Math.round((10400 + livePulse * 6200) * atmWeight * chgFactor);
+              callChange = 5.8 + livePulse * 9.2 - Math.abs(strike - liveAtm) / 60;
+              putChg = Math.round((-2600 - livePulse * 3300) * atmWeight);
+              putChange = -3.6 - livePulse * 6.4;
+            } else {
+              putChg = Math.round((10100 + livePulse * 6500) * atmWeight * chgFactor);
+              putChange = 5.6 + livePulse * 9.4 - Math.abs(strike - liveAtm) / 60;
+              callChg = Math.round((-2800 - livePulse * 3200) * atmWeight);
+              callChange = -3.8 - livePulse * 6.2;
+            }
+          }
+          if (live) {
+            const directionLift = liveWave >= 0 ? 1 : -1;
+            const nearBoost = Math.max(0, 1 - Math.abs(strike - liveAtm) / 180);
+            callLtp = Math.max(3.5, callLtp + liveMove * 0.42 + directionLift * nearBoost * livePulse * 7);
+            putLtp = Math.max(3.5, putLtp - liveMove * 0.40 - directionLift * nearBoost * livePulse * 7);
           }
           const callDelta = clamp(0.52 + (spot - strike) / 850 + deltaShift, 0.05, 0.95);
           const putDelta = -clamp(0.48 + (strike - spot) / 850 - deltaShift, 0.05, 0.95);
@@ -2756,10 +2788,21 @@
 
     function dataSourceLabel() {
       if (!state.dataSource) return "No source";
-      if (state.dataSource.kind === "url") return "URL";
+      if (state.dataSource.kind === "url") return "Live URL";
       if (state.dataSource.kind === "file") return state.dataSource.name || "Uploaded file";
       if (state.dataSource.kind === "paste") return "Pasted data";
-      return "Demo";
+      return "Paper live";
+    }
+
+    function cacheBustUrl(url) {
+      try {
+        const liveUrl = new URL(url, window.location.href);
+        liveUrl.searchParams.set("_ts", Date.now());
+        return liveUrl.toString();
+      } catch (error) {
+        const joiner = url.includes("?") ? "&" : "?";
+        return url + joiner + "_ts=" + Date.now();
+      }
     }
 
     function formatSeconds(ms) {
@@ -2793,7 +2836,7 @@
       els.autoCountdown.classList.toggle("live", active && !state.lastAutoError);
       els.autoCountdown.classList.toggle("error", Boolean(state.lastAutoError));
       if (!active) {
-        els.autoButtonText.textContent = "Auto Start";
+        els.autoButtonText.textContent = "Auto Start " + formatInterval(state.autoIntervalMs);
         els.autoCountdown.textContent = state.lastAutoError ? state.lastAutoError : "Auto off";
         return;
       }
@@ -2810,6 +2853,9 @@
     function startAutoUpdate() {
       state.autoEnabled = true;
       state.lastAutoError = "";
+      if (state.dataSource?.kind === "demo") {
+        state.demoBaseSpot = asNumber(els.spotInput.value, state.demoBaseSpot || 24085);
+      }
       if (!state.autoTimerId) {
         state.autoTimerId = window.setInterval(tickAutoUpdate, 1000);
       }
@@ -2845,7 +2891,7 @@
         let contracts = [];
         let sourceName = dataSourceLabel();
         if (state.dataSource?.kind === "url") {
-          const response = await fetch(state.dataSource.url, { cache: "no-store" });
+          const response = await fetch(cacheBustUrl(state.dataSource.url), { cache: "no-store" });
           if (!response.ok) throw new Error("URL " + response.status);
           contracts = parseInput(await response.text());
           sourceName = state.dataSource.url;
@@ -2856,20 +2902,34 @@
           contracts = parseInput(els.pasteInput.value);
           sourceName = "Pasted data";
         } else {
-          contracts = buildDemoData();
-          sourceName = "Demo live";
+          state.demoTick += 1;
+          contracts = buildDemoData({ live: true, tick: state.demoTick });
+          sourceName = "Paper live tick " + state.demoTick;
         }
         if (!contracts.length) throw new Error("No contracts loaded");
+        state.refreshCount += 1;
         loadContracts(contracts, sourceName);
         state.nextUpdateAt = Date.now() + state.autoIntervalMs;
       } catch (error) {
-        state.lastAutoError = "Auto error: " + error.message;
-        els.importStatus.innerHTML = `<span class="badge bad">Auto error</span><span>${escapeHtml(error.message)}</span>`;
+        const message = friendlyFetchError(error);
+        state.lastAutoError = "Auto error: " + message;
+        els.importStatus.innerHTML = `<span class="badge bad">Auto error</span><span>${escapeHtml(message)}</span>`;
         state.nextUpdateAt = Date.now() + state.autoIntervalMs;
       } finally {
         state.updateInFlight = false;
         updateAutoControls();
       }
+    }
+
+    function friendlyFetchError(error) {
+      const raw = String(error?.message || error || "Unknown error");
+      if (/failed to fetch|networkerror|load failed/i.test(raw)) {
+        return "Live URL blocked or offline. Use an HTTPS JSON/CSV feed with CORS enabled for this GitHub Pages site.";
+      }
+      if (/mixed content/i.test(raw)) {
+        return "HTTP live URL blocked on HTTPS page. Use an HTTPS feed or cloud proxy.";
+      }
+      return raw;
     }
 
     async function loadUrlSource() {
@@ -3583,12 +3643,10 @@
         if (!row) {
           closePaperPosition("Data missing / expiry changed", position.current || position.entry);
         } else {
-          const previousTarget = position.target;
-          const previousStop = position.stop;
           updateOpenPaperPosition(row);
-          if (position.current >= previousTarget) {
+          if (position.current >= position.target) {
             closePaperPosition("Target hit", position.current);
-          } else if (position.current <= previousStop) {
+          } else if (position.current <= position.stop) {
             closePaperPosition("Stop loss hit", position.current);
           } else if (top && positionKey(top) !== position.key && top.score >= position.score + 8) {
             closePaperPosition("Signal changed to " + top.build.label + " " + fmt(top.strike), position.current);
@@ -4080,8 +4138,8 @@
       els.snapSpot.textContent = fmt(spot, 2);
       els.snapExpiry.textContent = a ? prettyDate(a.expiry) : "-";
       els.snapSignal.textContent = a ? a.signal.label : "-";
-      els.snapUpdated.textContent = state.lastUpdated ? state.lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-";
-      els.dataStatus.textContent = state.sourceName + " - " + state.contracts.length + " contracts";
+      els.snapUpdated.textContent = state.lastUpdated ? state.lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+      els.dataStatus.textContent = state.sourceName + " - " + state.contracts.length + " contracts - refresh " + fmt(state.refreshCount);
     }
 
     function renderAll() {
@@ -4106,7 +4164,7 @@
       state.lastAutoError = "";
       populateExpirySelect();
       analyse();
-      els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)}</span>`;
+      els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)} at ${state.lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>`;
       updateAutoControls();
     }
 
@@ -4176,8 +4234,11 @@
     });
     document.getElementById("analyseBtn").addEventListener("click", analyse);
     document.getElementById("demoBtn").addEventListener("click", () => {
-      setDataSource({ kind: "demo", label: "Demo" });
-      loadContracts(buildDemoData(), "Demo");
+      setDataSource({ kind: "demo", label: "Paper live" });
+      state.demoTick = 0;
+      state.refreshCount = 0;
+      state.demoBaseSpot = asNumber(els.spotInput.value, state.demoBaseSpot || 24085);
+      loadContracts(buildDemoData(), "Paper live");
     });
     document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("fileInput").click());
     document.getElementById("fileInput").addEventListener("change", async event => {
@@ -4213,7 +4274,7 @@
     });
     els.alertToggleBtn.addEventListener("click", toggleAlerts);
 
-    loadContracts(buildDemoData(), "Demo");
+    loadContracts(buildDemoData(), "Paper live");
     updateAlertControls();
   </script>
 </body>
