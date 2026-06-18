@@ -22,3 +22,25 @@ Auto update works with a hosted `.dat` file URL because the browser can re-fetch
 Auto Start refreshes during NSE regular market time, Monday-Friday 09:15 to 15:30 IST, excluding the loaded NSE 2026 trading holidays. Outside market hours or holidays, the scanner pauses and resumes at the next open.
 
 The browser remembers the last NSE feed URL, Auto Start preference, and last successful option-chain snapshot locally, so reopening the site can still show the last saved data while waiting for the next live refresh.
+
+## Excel DAT Uploader
+
+Files:
+
+- `nifty_option_data_cache.xlsx` - Excel template. Put live rows in the `OptionData` sheet.
+- `run_excel_dat_upload_1min.ps1` - Windows uploader. Exports Excel to `data/nifty-options.dat` and uploads it to GitHub Pages.
+
+Test export without upload:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_excel_dat_upload_1min.ps1 -Once -NoUpload
+```
+
+Run every 60 seconds and upload to GitHub:
+
+```powershell
+gh auth login
+powershell -ExecutionPolicy Bypass -File .\run_excel_dat_upload_1min.ps1
+```
+
+You can also set `GITHUB_TOKEN` instead of using GitHub CLI. The script uploads only when the DAT content changes.
