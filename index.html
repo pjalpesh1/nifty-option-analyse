@@ -2436,7 +2436,7 @@
             <div class="panel-body stack">
               <div class="field">
                 <label for="sourceUrlInput">NSE Option Chain / DAT File URL</label>
-                <input id="sourceUrlInput" type="url" placeholder="https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY or https://your-site.com/nifty-options.dat">
+                <input id="sourceUrlInput" type="url" placeholder="data/nifty-options.dat">
               </div>
               <div class="actions">
                 <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
@@ -2466,7 +2466,7 @@
                 </div>
                 <div class="guard-item info">
                   <span>Default URL</span>
-                  <b>Use https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY, your NSE proxy URL, or a hosted .dat data-file URL.</b>
+                  <b>Default is data/nifty-options.dat. The Excel uploader can refresh this hosted file every 60 seconds.</b>
                 </div>
                 <div class="guard-item bad">
                   <span>Browser Limit</span>
@@ -2478,7 +2478,11 @@
                 </div>
                 <div class="guard-item info">
                   <span>DAT Auto</span>
-                  <b>Auto Start can refresh a hosted .dat file URL. Local uploaded files are one-time imports and cannot auto-reread after changes.</b>
+                  <b>Auto Start can refresh the hosted .dat file URL. Local uploaded files are one-time imports and cannot auto-reread after changes.</b>
+                </div>
+                <div class="guard-item good">
+                  <span>Excel</span>
+                  <b>Use nifty_option_data_cache.xlsx with run_excel_dat_upload_1min.ps1 to publish data/nifty-options.dat every 60 seconds.</b>
                 </div>
                 <div class="guard-item info">
                   <span>Auto</span>
@@ -2543,7 +2547,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
   <script>
     const AUTO_INTERVAL_OPTIONS = [1000, 5000, 15000, 60000, 300000, 900000, 3600000];
     const DEFAULT_AUTO_INTERVAL_MS = 1000;
-    const DEFAULT_NSE_OPTION_CHAIN_URL = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY";
+    const DEFAULT_NSE_OPTION_CHAIN_URL = "data/nifty-options.dat";
     const AUTO_INTERVAL_KEY = "niftyNseAutoIntervalMs";
     const AUTO_ENABLED_KEY = "niftyNseAutoEnabled";
     const DATA_SOURCE_URL_KEY = "niftyNseFeedUrl";
