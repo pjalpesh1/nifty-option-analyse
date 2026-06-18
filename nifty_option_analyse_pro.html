@@ -2419,7 +2419,11 @@
                 </div>
                 <div class="guard-item info">
                   <span>Auto</span>
-                  <b>Auto Start now requires this feed URL and can poll every 1 second for live scanner and virtual position updates.</b>
+                  <b>Auto Start requires this feed URL, can poll every 1 second, and runs only during NSE regular market time.</b>
+                </div>
+                <div class="guard-item good">
+                  <span>Market Time</span>
+                  <b>Scanner auto-update uses India time: Monday-Friday, 09:15 to 15:30 IST, then pauses until the next open.</b>
                 </div>
               </div>
               <pre class="sample-format">Expected proxy output:
@@ -2471,6 +2475,23 @@
     const DEFAULT_AUTO_INTERVAL_MS = 1000;
     const AUTO_INTERVAL_KEY = "niftyAngelAutoIntervalMs";
     const POSITION_HISTORY_KEY = "niftyPaperPositionHistory";
+    const MARKET_TIMEZONE = "Asia/Kolkata";
+    const MARKET_OPEN_MINUTES = 9 * 60 + 15;
+    const MARKET_CLOSE_MINUTES = 15 * 60 + 30;
+    const IST_OFFSET_MINUTES = 5 * 60 + 30;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const MARKET_WEEKDAYS = new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+    const IST_PART_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+      timeZone: MARKET_TIMEZONE,
+      weekday: "short",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23"
+    });
 
     function storedAutoIntervalMs() {
       try {
@@ -2993,6 +3014,11 @@
 
     function formatSeconds(ms) {
       const seconds = Math.max(0, Math.ceil(ms / 1000));
+      if (seconds >= 3600) {
+        const h = Math.floor(seconds / 3600);
+        const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+        return h + "h " + m + "m";
+      }
       const m = String(Math.floor(seconds / 60)).padStart(2, "0");
       const s = String(seconds % 60).padStart(2, "0");
       return m + ":" + s;
@@ -3004,6 +3030,90 @@
       return minutes + "m";
     }
 
+    function istParts(date = new Date()) {
+      const raw = {};
+      for (const part of IST_PART_FORMATTER.formatToParts(date)) {
+        if (part.type !== "literal") raw[part.type] = part.value;
+      }
+      return {
+        weekday: raw.weekday,
+        year: Number(raw.year),
+        month: Number(raw.month),
+        day: Number(raw.day),
+        hour: Number(raw.hour),
+        minute: Number(raw.minute),
+        second: Number(raw.second)
+      };
+    }
+
+    function istWallTimeToUtcMs(parts, minutes) {
+      return Date.UTC(parts.year, parts.month - 1, parts.day, 0, minutes - IST_OFFSET_MINUTES, 0);
+    }
+
+    function isMarketWeekday(parts) {
+      return MARKET_WEEKDAYS.has(parts.weekday);
+    }
+
+    function nextMarketOpenAt(nowMs, todayParts) {
+      const istMidnightUtc = istWallTimeToUtcMs(todayParts, 0);
+      for (let offset = 0; offset < 8; offset += 1) {
+        const candidateParts = istParts(new Date(istMidnightUtc + offset * DAY_MS + 12 * 60 * 60 * 1000));
+        if (!isMarketWeekday(candidateParts)) continue;
+        const openAt = istWallTimeToUtcMs(candidateParts, MARKET_OPEN_MINUTES);
+        if (openAt > nowMs) return openAt;
+      }
+      return nowMs + DAY_MS;
+    }
+
+    function marketStatus(now = new Date()) {
+      const nowMs = now.getTime();
+      const parts = istParts(now);
+      const openAt = istWallTimeToUtcMs(parts, MARKET_OPEN_MINUTES);
+      const closeAt = istWallTimeToUtcMs(parts, MARKET_CLOSE_MINUTES);
+      const weekday = isMarketWeekday(parts);
+      const isOpen = weekday && nowMs >= openAt && nowMs < closeAt;
+      return {
+        parts,
+        isOpen,
+        isPreOpen: weekday && nowMs < openAt,
+        isAfterClose: weekday && nowMs >= closeAt,
+        openAt,
+        closeAt,
+        nextOpenAt: isOpen ? openAt : nextMarketOpenAt(nowMs, parts)
+      };
+    }
+
+    function formatIstClock(value) {
+      const date = value instanceof Date ? value : new Date(value);
+      return date.toLocaleTimeString("en-IN", {
+        timeZone: MARKET_TIMEZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }) + " IST";
+    }
+
+    function formatIstDateTime(value) {
+      return new Date(value).toLocaleString("en-IN", {
+        timeZone: MARKET_TIMEZONE,
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit"
+      }) + " IST";
+    }
+
+    function marketStatusLabel(status = marketStatus()) {
+      if (status.isOpen) return "Market open IST - closes " + formatIstClock(status.closeAt);
+      if (status.isPreOpen) return "Market closed IST - opens today 09:15 IST";
+      return "Market closed IST - opens " + formatIstDateTime(status.nextOpenAt);
+    }
+
+    function nextAutoUpdateTime(baseMs = Date.now() + state.autoIntervalMs) {
+      const status = marketStatus(new Date(baseMs));
+      return status.isOpen ? baseMs : status.nextOpenAt;
+    }
+
     function setAutoInterval(value) {
       const next = Number(value);
       state.autoIntervalMs = AUTO_INTERVAL_OPTIONS.includes(next) ? next : DEFAULT_AUTO_INTERVAL_MS;
@@ -3012,29 +3122,38 @@
         localStorage.setItem(AUTO_INTERVAL_KEY, String(state.autoIntervalMs));
       } catch (error) {}
       if (state.autoEnabled && !state.updateInFlight) {
-        state.nextUpdateAt = Date.now() + state.autoIntervalMs;
+        state.nextUpdateAt = nextAutoUpdateTime();
       }
       updateAutoControls("Interval " + formatInterval(state.autoIntervalMs));
     }
 
     function updateAutoControls(message = "") {
       const active = state.autoEnabled;
+      const market = marketStatus();
+      const marketLabel = marketStatusLabel(market);
       els.autoToggleBtn.classList.toggle("active", active);
-      els.autoCountdown.classList.toggle("live", active && !state.lastAutoError);
+      els.autoCountdown.classList.toggle("live", active && market.isOpen && !state.lastAutoError);
       els.autoCountdown.classList.toggle("error", Boolean(state.lastAutoError));
       if (!active) {
         els.autoButtonText.textContent = "Auto Start " + formatInterval(state.autoIntervalMs);
-        els.autoCountdown.textContent = state.lastAutoError ? state.lastAutoError : "Auto off";
+        els.autoCountdown.textContent = state.lastAutoError ? state.lastAutoError : "Auto off / " + marketLabel;
+        return;
+      }
+      if (!market.isOpen) {
+        const pausedUntil = state.nextUpdateAt || market.nextOpenAt;
+        const remaining = formatSeconds(pausedUntil - Date.now());
+        els.autoButtonText.textContent = "Paused " + remaining;
+        els.autoCountdown.textContent = state.lastAutoError || message || marketLabel + " / resumes in " + remaining;
         return;
       }
       if (state.updateInFlight) {
         els.autoButtonText.textContent = "Updating...";
-        els.autoCountdown.textContent = "Source: " + dataSourceLabel() + " / every " + formatInterval(state.autoIntervalMs);
+        els.autoCountdown.textContent = "Source: " + dataSourceLabel() + " / every " + formatInterval(state.autoIntervalMs) + " / " + marketLabel;
         return;
       }
       const remaining = state.nextUpdateAt ? formatSeconds(state.nextUpdateAt - Date.now()) : formatSeconds(state.autoIntervalMs);
       els.autoButtonText.textContent = "Stop " + remaining;
-      els.autoCountdown.textContent = message || "Next update " + remaining + " / every " + formatInterval(state.autoIntervalMs) + " - " + dataSourceLabel();
+      els.autoCountdown.textContent = message || "Next update " + remaining + " / every " + formatInterval(state.autoIntervalMs) + " - " + dataSourceLabel() + " / " + marketLabel;
     }
 
     function startAutoUpdate() {
@@ -3051,8 +3170,14 @@
       if (!state.autoTimerId) {
         state.autoTimerId = window.setInterval(tickAutoUpdate, 1000);
       }
-      refreshLiveData();
-      updateAutoControls("Auto scanner running");
+      const market = marketStatus();
+      if (market.isOpen) {
+        refreshLiveData();
+        updateAutoControls("Auto scanner running");
+      } else {
+        state.nextUpdateAt = market.nextOpenAt;
+        updateAutoControls("Auto scanner paused outside NSE hours");
+      }
     }
 
     function stopAutoUpdate() {
@@ -3067,6 +3192,15 @@
 
     function tickAutoUpdate() {
       if (!state.autoEnabled) return;
+      const market = marketStatus();
+      if (!market.isOpen) {
+        state.nextUpdateAt = market.nextOpenAt;
+        updateAutoControls("Auto scanner paused outside NSE hours");
+        return;
+      }
+      if (!state.nextUpdateAt) {
+        state.nextUpdateAt = Date.now();
+      }
       if (!state.updateInFlight && state.nextUpdateAt && Date.now() >= state.nextUpdateAt) {
         refreshLiveData();
         return;
@@ -3074,8 +3208,16 @@
       updateAutoControls();
     }
 
-    async function refreshLiveData() {
+    async function refreshLiveData(options = {}) {
       if (state.updateInFlight) return;
+      const force = Boolean(options.force);
+      const market = marketStatus();
+      if (!force && !market.isOpen) {
+        state.nextUpdateAt = market.nextOpenAt;
+        state.lastAutoError = "";
+        updateAutoControls("Auto scanner paused outside NSE hours");
+        return;
+      }
       state.updateInFlight = true;
       state.lastAutoError = "";
       updateAutoControls("Updating now");
@@ -3093,12 +3235,12 @@
         if (!contracts.length) throw new Error("No contracts loaded");
         state.refreshCount += 1;
         loadContracts(contracts, sourceName);
-        state.nextUpdateAt = Date.now() + state.autoIntervalMs;
+        state.nextUpdateAt = state.autoEnabled ? nextAutoUpdateTime() : null;
       } catch (error) {
         const message = friendlyFetchError(error);
         state.lastAutoError = "Auto error: " + message;
         els.importStatus.innerHTML = `<span class="badge bad">Auto error</span><span>${escapeHtml(message)}</span>`;
-        state.nextUpdateAt = Date.now() + state.autoIntervalMs;
+        state.nextUpdateAt = state.autoEnabled ? nextAutoUpdateTime() : null;
       } finally {
         state.updateInFlight = false;
         updateAutoControls();
@@ -3123,7 +3265,7 @@
         return;
       }
       setDataSource({ kind: "url", url, label: "URL" });
-      await refreshLiveData();
+      await refreshLiveData({ force: true });
     }
 
     function classifyBuildUp(contract) {
@@ -3903,7 +4045,7 @@
 
     function timeLabel(value) {
       const date = reviveDate(value);
-      return date ? date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+      return date ? formatIstClock(date) : "-";
     }
 
     function dateTimeLabel(value) {
@@ -4136,7 +4278,7 @@
       }
       els.signalHistory.innerHTML = state.signalHistory.map(item => `
         <div class="history-item ${item.className}">
-          <span>${item.time.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+          <span>${formatIstClock(item.time)}</span>
           <b>${escapeHtml(item.signal)} - ${prettyDate(item.expiry)} - bias ${fmt(item.diff, 0)} - max pain ${fmt(item.maxPain)}</b>
         </div>`).join("");
     }
@@ -4411,8 +4553,8 @@
       els.snapSpot.textContent = fmt(spot, 2);
       els.snapExpiry.textContent = a ? prettyDate(a.expiry) : "-";
       els.snapSignal.textContent = a ? a.signal.label : "-";
-      els.snapUpdated.textContent = state.lastUpdated ? state.lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
-      els.dataStatus.textContent = state.sourceName + " - " + state.contracts.length + " contracts - refresh " + fmt(state.refreshCount);
+      els.snapUpdated.textContent = state.lastUpdated ? formatIstClock(state.lastUpdated) : "-";
+      els.dataStatus.textContent = state.sourceName + " - " + state.contracts.length + " contracts - refresh " + fmt(state.refreshCount) + " - " + marketStatusLabel();
     }
 
     function renderAll() {
@@ -4437,7 +4579,7 @@
       state.lastAutoError = "";
       populateExpirySelect();
       analyse();
-      els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)} at ${state.lastUpdated.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>`;
+      els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)} at ${formatIstClock(state.lastUpdated)}</span>`;
       updateAutoControls();
     }
 
