@@ -2522,7 +2522,7 @@
                 </div>
                 <div class="guard-item info">
                   <span>Auto</span>
-                  <b>Auto Start refreshes the NSE source during regular market time and pauses outside market hours.</b>
+                  <b>Auto Start checks the hosted DAT feed every interval. Direct NSE website mode still respects regular market time.</b>
                 </div>
                 <div class="guard-item good">
                   <span>Market Time</span>
@@ -3233,6 +3233,10 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       }
     }
 
+    function canRefreshOutsideMarket() {
+      return state.dataSource?.kind === "url" && isDatUrl(state.dataSource.url);
+    }
+
     function formatSeconds(ms) {
       const seconds = Math.max(0, Math.ceil(ms / 1000));
       if (seconds >= 3600) {
@@ -3350,6 +3354,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
 
     function nextAutoUpdateTime(baseMs = Date.now() + state.autoIntervalMs) {
       const status = marketStatus(new Date(baseMs));
+      if (canRefreshOutsideMarket()) return baseMs;
       return status.isOpen ? baseMs : status.nextOpenAt;
     }
 
@@ -3370,15 +3375,16 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       const active = state.autoEnabled;
       const market = marketStatus();
       const marketLabel = marketStatusLabel(market);
+      const outsideMarketRefresh = canRefreshOutsideMarket();
       els.autoToggleBtn.classList.toggle("active", active);
-      els.autoCountdown.classList.toggle("live", active && market.isOpen && !state.lastAutoError);
+      els.autoCountdown.classList.toggle("live", active && (market.isOpen || outsideMarketRefresh) && !state.lastAutoError);
       els.autoCountdown.classList.toggle("error", Boolean(state.lastAutoError));
       if (!active) {
         els.autoButtonText.textContent = "Auto Start " + formatInterval(state.autoIntervalMs);
         els.autoCountdown.textContent = state.lastAutoError ? state.lastAutoError : "Auto off / " + marketLabel;
         return;
       }
-      if (!market.isOpen) {
+      if (!market.isOpen && !outsideMarketRefresh) {
         const pausedUntil = state.nextUpdateAt || market.nextOpenAt;
         const remaining = formatSeconds(pausedUntil - Date.now());
         els.autoButtonText.textContent = "Paused " + remaining;
@@ -3392,7 +3398,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       }
       const remaining = state.nextUpdateAt ? formatSeconds(state.nextUpdateAt - Date.now()) : formatSeconds(state.autoIntervalMs);
       els.autoButtonText.textContent = "Stop " + remaining;
-      els.autoCountdown.textContent = message || "Next update " + remaining + " / every " + formatInterval(state.autoIntervalMs) + " - " + dataSourceLabel() + " / " + marketLabel;
+      const modeLabel = outsideMarketRefresh && !market.isOpen ? "DAT feed check continues while market is closed" : marketLabel;
+      els.autoCountdown.textContent = message || "Next update " + remaining + " / every " + formatInterval(state.autoIntervalMs) + " - " + dataSourceLabel() + " / " + modeLabel;
     }
 
     function startAutoUpdate() {
@@ -3415,7 +3422,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         state.autoTimerId = window.setInterval(tickAutoUpdate, 1000);
       }
       const market = marketStatus();
-      if (market.isOpen) {
+      if (market.isOpen || canRefreshOutsideMarket()) {
         refreshLiveData();
         updateAutoControls("Auto scanner running");
       } else {
@@ -3438,7 +3445,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     function tickAutoUpdate() {
       if (!state.autoEnabled) return;
       const market = marketStatus();
-      if (!market.isOpen) {
+      if (!market.isOpen && !canRefreshOutsideMarket()) {
         state.nextUpdateAt = market.nextOpenAt;
         updateAutoControls("Auto scanner paused outside NSE hours");
         return;
@@ -3457,7 +3464,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       if (state.updateInFlight) return;
       const force = Boolean(options.force);
       const market = marketStatus();
-      if (!force && !market.isOpen) {
+      if (!force && !market.isOpen && !canRefreshOutsideMarket()) {
         state.nextUpdateAt = market.nextOpenAt;
         state.lastAutoError = "";
         updateAutoControls("Auto scanner paused outside NSE hours");
@@ -3752,7 +3759,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         <div class="connect-steps">
           <div class="connect-step"><span>Step 1</span><b>Open Data tab. The default source is NSE NIFTY option-chain JSON.</b></div>
           <div class="connect-step"><span>Step 2</span><b>Press Load URL. If NSE blocks direct browser access, paste your NSE proxy URL or hosted .dat URL.</b></div>
-          <div class="connect-step"><span>Step 3</span><b>Press Auto Start. It refreshes during NSE market time and shows cached data after reload.</b></div>
+          <div class="connect-step"><span>Step 3</span><b>Press Auto Start. DAT mode keeps checking new spot and option-chain data every interval.</b></div>
         </div>
         <div class="connect-actions">
           <button type="button" class="btn primary" data-action="open-data"><span class="icon refresh"></span>Open Data Tab</button>
@@ -5033,13 +5040,12 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         els.importStatus.innerHTML = `<span class="badge watch">NSE source ready</span><span>NSE option-chain URL is ready. Press Load URL for manual refresh or Auto Start during market hours.</span>`;
       }
     }
-    if (hasSavedFeed && !hasCachedData) {
+    if (hasSavedFeed) {
       window.setTimeout(async () => {
         await refreshLiveData({ force: true });
         if (storedAutoEnabled()) startAutoUpdate();
+        else updateAutoControls();
       }, 0);
-    } else if (hasSavedFeed && storedAutoEnabled()) {
-      window.setTimeout(startAutoUpdate, 0);
     } else {
       updateAutoControls();
     }
