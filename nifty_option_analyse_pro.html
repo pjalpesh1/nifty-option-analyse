@@ -2029,7 +2029,7 @@
           <div class="brand-mark" aria-hidden="true">NF</div>
           <div class="brand-title">
             <h1>NIFTY Option Analyse Pro</h1>
-            <span id="dataStatus">Demo scanner loaded</span>
+            <span id="dataStatus">Angel One feed not connected</span>
           </div>
         </div>
         <div class="market-strip" aria-label="Market snapshot">
@@ -2093,6 +2093,9 @@
           <div class="field">
             <label for="autoIntervalSelect">Auto Interval</label>
             <select id="autoIntervalSelect">
+              <option value="1000">1 sec</option>
+              <option value="5000">5 sec</option>
+              <option value="15000">15 sec</option>
               <option value="60000">1 min</option>
               <option value="300000">5 min</option>
               <option value="900000">15 min</option>
@@ -2101,7 +2104,6 @@
           </div>
         </div>
         <div class="actions">
-          <button type="button" class="btn utility-action" id="demoBtn" hidden><span class="icon refresh"></span>Demo</button>
           <button type="button" class="btn utility-action" id="uploadBtn" hidden><span class="icon upload"></span>Upload</button>
           <button type="button" class="btn primary" id="analyseBtn"><span class="icon play"></span>Analyse</button>
           <button type="button" class="btn live" id="autoToggleBtn"><span class="icon clock"></span><span id="autoButtonText">Auto Start</span></button>
@@ -2296,7 +2298,7 @@
           <section class="panel">
             <div class="panel-head">
               <h2>Position</h2>
-              <span id="positionSubtitle">Paper auto position</span>
+              <span id="positionSubtitle">Virtual signal position</span>
             </div>
             <div class="panel-body">
               <div id="positionCard"></div>
@@ -2374,8 +2376,8 @@
             </div>
             <div class="panel-body stack">
               <div class="field">
-                <label for="sourceUrlInput">Live JSON / CSV / Angel Proxy URL</label>
-                <input id="sourceUrlInput" type="url" placeholder="https://your-cloud-feed.com/angel-nifty-options.json">
+                <label for="sourceUrlInput">Angel One Backend Feed URL</label>
+                <input id="sourceUrlInput" type="url" placeholder="https://your-secure-backend.com/angel-nifty-options.json">
               </div>
               <div class="actions">
                 <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
@@ -2414,6 +2416,10 @@
                 <div class="guard-item good">
                   <span>Feed URL</span>
                   <b>Deploy a backend proxy, then paste its HTTPS JSON/CSV feed URL above and press Load URL.</b>
+                </div>
+                <div class="guard-item info">
+                  <span>Auto</span>
+                  <b>Auto Start now requires this feed URL and can poll every 1 second for live scanner and virtual position updates.</b>
                 </div>
               </div>
               <pre class="sample-format">Expected proxy output:
@@ -2461,13 +2467,14 @@
   </div>
 
   <script>
-    const AUTO_INTERVAL_OPTIONS = [60000, 300000, 900000, 3600000];
-    const DEFAULT_AUTO_INTERVAL_MS = 60000;
+    const AUTO_INTERVAL_OPTIONS = [1000, 5000, 15000, 60000, 300000, 900000, 3600000];
+    const DEFAULT_AUTO_INTERVAL_MS = 1000;
+    const AUTO_INTERVAL_KEY = "niftyAngelAutoIntervalMs";
     const POSITION_HISTORY_KEY = "niftyPaperPositionHistory";
 
     function storedAutoIntervalMs() {
       try {
-        const value = Number(localStorage.getItem("niftyAutoIntervalMs"));
+        const value = Number(localStorage.getItem(AUTO_INTERVAL_KEY));
         return AUTO_INTERVAL_OPTIONS.includes(value) ? value : DEFAULT_AUTO_INTERVAL_MS;
       } catch (error) {
         return DEFAULT_AUTO_INTERVAL_MS;
@@ -2506,9 +2513,9 @@
       selectedExpiry: "auto",
       analysis: [],
       activeAnalysis: null,
-      sourceName: "Paper live",
+      sourceName: "Angel One feed not connected",
       lastUpdated: null,
-      dataSource: { kind: "demo", label: "Paper live" },
+      dataSource: null,
       autoEnabled: false,
       autoTimerId: null,
       autoIntervalMs: storedAutoIntervalMs(),
@@ -2966,11 +2973,11 @@
     }
 
     function dataSourceLabel() {
-      if (!state.dataSource) return "No source";
-      if (state.dataSource.kind === "url") return "Live URL";
+      if (!state.dataSource) return "Angel One feed missing";
+      if (state.dataSource.kind === "url") return "Angel One live feed";
       if (state.dataSource.kind === "file") return state.dataSource.name || "Uploaded file";
       if (state.dataSource.kind === "paste") return "Pasted data";
-      return "Paper live";
+      return "Angel One feed";
     }
 
     function cacheBustUrl(url) {
@@ -2992,6 +2999,7 @@
     }
 
     function formatInterval(ms) {
+      if (ms < 60000) return Math.max(1, Math.round(ms / 1000)) + "s";
       const minutes = Math.max(1, Math.round(ms / 60000));
       return minutes + "m";
     }
@@ -3001,7 +3009,7 @@
       state.autoIntervalMs = AUTO_INTERVAL_OPTIONS.includes(next) ? next : DEFAULT_AUTO_INTERVAL_MS;
       els.autoIntervalSelect.value = String(state.autoIntervalMs);
       try {
-        localStorage.setItem("niftyAutoIntervalMs", String(state.autoIntervalMs));
+        localStorage.setItem(AUTO_INTERVAL_KEY, String(state.autoIntervalMs));
       } catch (error) {}
       if (state.autoEnabled && !state.updateInFlight) {
         state.nextUpdateAt = Date.now() + state.autoIntervalMs;
@@ -3030,12 +3038,16 @@
     }
 
     function startAutoUpdate() {
+      if (state.dataSource?.kind !== "url") {
+        state.lastAutoError = "Auto error: Angel One backend feed URL required";
+        els.importStatus.innerHTML = `<span class="badge bad">Angel feed needed</span><span>Paste your secure Angel One backend HTTPS JSON/CSV feed URL in Data tab, then press Load URL.</span>`;
+        updateAutoControls();
+        activateView("dataView");
+        return;
+      }
       state.autoEnabled = true;
       state.paperEntryArmed = true;
       state.lastAutoError = "";
-      if (state.dataSource?.kind === "demo") {
-        state.demoBaseSpot = asNumber(els.spotInput.value, state.demoBaseSpot || 24085);
-      }
       if (!state.autoTimerId) {
         state.autoTimerId = window.setInterval(tickAutoUpdate, 1000);
       }
@@ -3055,7 +3067,6 @@
 
     function tickAutoUpdate() {
       if (!state.autoEnabled) return;
-      markPaperPositionLive();
       if (!state.updateInFlight && state.nextUpdateAt && Date.now() >= state.nextUpdateAt) {
         refreshLiveData();
         return;
@@ -3075,17 +3086,9 @@
           const response = await fetch(cacheBustUrl(state.dataSource.url), { cache: "no-store" });
           if (!response.ok) throw new Error("URL " + response.status);
           contracts = parseInput(await response.text());
-          sourceName = state.dataSource.url;
-        } else if (state.dataSource?.kind === "file") {
-          contracts = parseInput(await state.dataSource.file.text());
-          sourceName = state.dataSource.name || "Uploaded file";
-        } else if (state.dataSource?.kind === "paste") {
-          contracts = parseInput(els.pasteInput.value);
-          sourceName = "Pasted data";
+          sourceName = "Angel One live feed";
         } else {
-          state.demoTick += 1;
-          contracts = buildDemoData({ live: true, tick: state.demoTick });
-          sourceName = "Paper live tick " + state.demoTick;
+          throw new Error("Angel One backend feed URL required");
         }
         if (!contracts.length) throw new Error("No contracts loaded");
         state.refreshCount += 1;
@@ -3736,7 +3739,7 @@
         .find(row => row.expiry === position.expiry && row.strike === position.strike && row.type === position.type) || null;
     }
 
-    function openPaperPosition(row, note = "Auto paper entry") {
+    function openPaperPosition(row, note = "Auto virtual entry") {
       const cfg = signalConfig(row.build.label);
       const levels = positionRisk(row, row.ltp);
       state.paperPosition = {
@@ -3826,7 +3829,7 @@
         position.stop = Math.max(position.stop, row.ltp - levels.risk * 0.55);
         position.note = "Signal below score filter; stop tightened";
       } else {
-        position.note = "Auto paper position live";
+        position.note = "Auto virtual position live";
       }
     }
 
@@ -3954,18 +3957,18 @@
       if (!position) {
         els.positionSubtitle.textContent = top ? "Ready for fresh auto entry" : "Waiting for buy signal";
         els.positionSummary.innerHTML = [
-          card("Mode", "Paper", "Broker order off", "watch"),
+          card("Mode", "Virtual", "No broker order sent", "watch"),
           card("Top Signal", top ? top.build.label : "-", top ? fmt(top.strike) + " " + top.type + " score " + fmt(top.score, 0) : "No near-ATM buy setup", top ? signalConfig(top.build.label).biasClass : "neutral"),
-          card("Position", "Flat", state.lastPositionExitKey ? "Last signal closed" : "No active paper trade", "neutral"),
+          card("Position", "Flat", state.lastPositionExitKey ? "Last signal closed" : "No active virtual trade", "neutral"),
           card("Refresh", formatInterval(state.autoIntervalMs), state.autoEnabled ? "Auto scanner running" : "Auto scanner off", state.autoEnabled ? "good" : "watch")
         ].join("");
-        els.positionCard.innerHTML = `<div class="empty">${state.autoEnabled ? "Waiting for the next fresh scanner update to open a paper position at current LTP." : "Press Auto Start to open the next paper position from a fresh scanner update, not the old page-load price."}</div>`;
+        els.positionCard.innerHTML = `<div class="empty">${state.autoEnabled ? "Waiting for the next Angel One feed update to open a virtual position at current LTP." : "Load your Angel One backend feed URL, then press Auto Start to track the next virtual position from live data."}</div>`;
       } else {
         const pnl = positionPnl(position);
         const statusClass = position.status === "OPEN" ? pnl.className : "watch";
-        els.positionSubtitle.textContent = position.signal + " live paper position";
+        els.positionSubtitle.textContent = position.signal + " live virtual position";
         els.positionSummary.innerHTML = [
-          card("Mode", "Paper", "No broker order sent", "watch"),
+          card("Mode", "Virtual", "No broker order sent", "watch"),
           card("Signal", position.signal, fmt(position.strike) + " " + position.type + " / " + position.bias, position.biasClass),
           card("Live P/L", pnl.label, pct(pnl.pct, 2) + " per option unit", pnl.className),
           card("Risk", "T " + fmt(position.target, 2), "SL " + fmt(position.stop, 2), "info"),
@@ -4001,7 +4004,7 @@
           </article>`;
       }
       if (!state.positionHistory.length) {
-        els.positionHistory.innerHTML = `<div class="empty">No closed paper positions yet.</div>`;
+        els.positionHistory.innerHTML = `<div class="empty">No closed virtual positions yet.</div>`;
         return;
       }
       els.positionHistory.innerHTML = state.positionHistory.map(renderClosedPosition).join("");
@@ -4503,13 +4506,6 @@
       analyse();
     });
     document.getElementById("analyseBtn").addEventListener("click", analyse);
-    document.getElementById("demoBtn").addEventListener("click", () => {
-      setDataSource({ kind: "demo", label: "Paper live" });
-      state.demoTick = 0;
-      state.refreshCount = 0;
-      state.demoBaseSpot = asNumber(els.spotInput.value, state.demoBaseSpot || 24085);
-      loadContracts(buildDemoData(), "Paper live");
-    });
     document.getElementById("uploadBtn").addEventListener("click", () => document.getElementById("fileInput").click());
     document.getElementById("fileInput").addEventListener("change", async event => {
       const file = event.target.files[0];
@@ -4544,7 +4540,9 @@
     });
     els.alertToggleBtn.addEventListener("click", toggleAlerts);
 
-    loadContracts(buildDemoData(), "Paper live");
+    populateExpirySelect();
+    renderAll();
+    updateAutoControls();
     updateAlertControls();
   </script>
 </body>
