@@ -4,8 +4,8 @@ NSE SITE DATA - SIMPLE USE
 2. Keep the black window open.
 3. Open the website:
    https://pjalpesh1.github.io/nifty-option-analyse/
-4. Website feed URL must be:
-   data/nifty-options.dat
+4. Website feed URL should be:
+   https://raw.githubusercontent.com/pjalpesh1/nifty-option-analyse/main/data/nifty-options.dat
 5. Press Load URL, then Auto Start.
 
 This uses NSE website option-chain data directly.
