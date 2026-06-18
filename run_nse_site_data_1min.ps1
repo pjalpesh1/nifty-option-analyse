@@ -224,7 +224,8 @@ function Get-Token {
   }
 
   if ($gh) {
-    $token = & $gh.Source auth token 2>$null
+    $ghPath = if ($gh.Source) { $gh.Source } else { $gh.FullName }
+    $token = & $ghPath auth token 2>$null
     if ($LASTEXITCODE -eq 0 -and $token) { return $token.Trim() }
   }
 
