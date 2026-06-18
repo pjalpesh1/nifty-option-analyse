@@ -33,6 +33,14 @@ Auto Start refreshes during NSE regular market time, Monday-Friday 09:15 to 15:3
 
 The browser remembers the last NSE feed URL, Auto Start preference, and last successful option-chain snapshot locally, so reopening the site can still show the last saved data while waiting for the next live refresh.
 
+## GitHub Auto Update
+
+The repository includes a GitHub Actions workflow:
+
+- `.github/workflows/nse-data-autoupdate.yml`
+
+It tries to fetch NSE option-chain data and update `data/nifty-options.dat` automatically every 5 minutes during the NSE market window. GitHub scheduled workflows cannot run faster than every 5 minutes, and GitHub can delay scheduled jobs during busy periods. NSE may also block requests from GitHub cloud IPs sometimes. For the fastest and most reliable 1-minute feed, keep using `START_NSE_SITE_DATA.bat` on the laptop.
+
 ## Excel DAT Uploader
 
 Files:
