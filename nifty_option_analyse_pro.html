@@ -2474,6 +2474,9 @@
     const AUTO_INTERVAL_OPTIONS = [1000, 5000, 15000, 60000, 300000, 900000, 3600000];
     const DEFAULT_AUTO_INTERVAL_MS = 1000;
     const AUTO_INTERVAL_KEY = "niftyAngelAutoIntervalMs";
+    const AUTO_ENABLED_KEY = "niftyAngelAutoEnabled";
+    const DATA_SOURCE_URL_KEY = "niftyAngelFeedUrl";
+    const SNAPSHOT_CACHE_KEY = "niftyAngelLastSnapshot";
     const POSITION_HISTORY_KEY = "niftyPaperPositionHistory";
     const MARKET_TIMEZONE = "Asia/Kolkata";
     const MARKET_OPEN_MINUTES = 9 * 60 + 15;
@@ -2520,6 +2523,34 @@
       }
     }
 
+    function storedAutoEnabled() {
+      try {
+        return localStorage.getItem(AUTO_ENABLED_KEY) === "true";
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function saveAutoEnabled(enabled) {
+      try {
+        localStorage.setItem(AUTO_ENABLED_KEY, enabled ? "true" : "false");
+      } catch (error) {}
+    }
+
+    function storedFeedUrl() {
+      try {
+        return localStorage.getItem(DATA_SOURCE_URL_KEY) || "";
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function saveFeedUrl(url) {
+      try {
+        if (url) localStorage.setItem(DATA_SOURCE_URL_KEY, url);
+      } catch (error) {}
+    }
+
     function reviveDate(value) {
       if (!value) return null;
       const date = value instanceof Date ? value : new Date(value);
@@ -2543,6 +2574,17 @@
         return Array.isArray(parsed) ? parsed.map(revivePositionHistoryItem).slice(0, 50) : [];
       } catch (error) {
         return [];
+      }
+    }
+
+    function storedSnapshot() {
+      try {
+        const raw = localStorage.getItem(SNAPSHOT_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && Array.isArray(parsed.contracts) ? parsed : null;
+      } catch (error) {
+        return null;
       }
     }
 
@@ -3008,6 +3050,7 @@
 
     function setDataSource(source) {
       state.dataSource = source;
+      if (source?.kind === "url") saveFeedUrl(source.url);
       updateAutoControls();
     }
 
@@ -3193,6 +3236,10 @@
     }
 
     function startAutoUpdate() {
+      const typedUrl = els.sourceUrlInput.value.trim();
+      if (state.dataSource?.kind !== "url" && typedUrl) {
+        setDataSource({ kind: "url", url: typedUrl, label: "URL" });
+      }
       if (state.dataSource?.kind !== "url") {
         state.lastAutoError = "Auto error: Angel One backend feed URL required";
         els.importStatus.innerHTML = `<span class="badge bad">Angel feed needed</span><span>Paste your secure Angel One backend HTTPS JSON/CSV feed URL in Data tab, then press Load URL.</span>`;
@@ -3201,6 +3248,7 @@
         return;
       }
       state.autoEnabled = true;
+      saveAutoEnabled(true);
       state.paperEntryArmed = true;
       state.lastAutoError = "";
       if (!state.autoTimerId) {
@@ -3218,6 +3266,7 @@
 
     function stopAutoUpdate() {
       state.autoEnabled = false;
+      saveAutoEnabled(false);
       state.nextUpdateAt = null;
       if (state.autoTimerId) {
         window.clearInterval(state.autoTimerId);
@@ -3638,6 +3687,9 @@
         })
         .slice(0, 15);
       els.scannerSubtitle.textContent = filtered.length + " near-ATM buy signals above score " + minScore;
+      const emptyScannerText = state.contracts.length
+        ? "No CE/PE buy signals match the current filters."
+        : "No live option data loaded. Open Data tab and load your Angel One backend feed URL.";
       els.scannerTable.innerHTML = filtered.map(row => `
         <tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
           <td class="left" data-label="Setup"><span class="badge ${row.build.className}">${escapeHtml(row.build.label)}</span></td>
@@ -3653,13 +3705,13 @@
           <td data-label="Delta">${fmt(row.delta, 3)}</td>
           <td data-label="Gamma">${fmt(row.gamma, 5)}</td>
           <td data-label="Theta">${fmt(row.theta, 2)}</td>
-        </tr>`).join("") || `<tr><td class="left" colspan="13">No CE/PE buy signals match the current filters.</td></tr>`;
+        </tr>`).join("") || `<tr><td class="left" colspan="13">${emptyScannerText}</td></tr>`;
       renderMobileScannerCards(filtered);
     }
 
     function renderMobileScannerCards(rows) {
       if (!rows.length) {
-        els.scannerMobileCards.innerHTML = `<div class="empty">No near-ATM scanner results. Lower score or clear filter.</div>`;
+        els.scannerMobileCards.innerHTML = `<div class="empty">${state.contracts.length ? "No near-ATM scanner results. Lower score or clear filter." : "No live option data loaded. Add your Angel One feed URL in Data tab."}</div>`;
         return;
       }
       els.scannerMobileCards.innerHTML = `<div class="scanner-mobile-tip">Tap any card to flip details</div>` + rows.map(row => {
@@ -4580,7 +4632,7 @@
           <td data-label="Delta">${fmt(c.delta, 3)}</td>
           <td data-label="Gamma">${fmt(c.gamma, 5)}</td>
           <td data-label="Theta">${fmt(c.theta, 2)}</td>
-        </tr>`).join("") || `<tr><td class="left" colspan="10">No data loaded.</td></tr>`;
+        </tr>`).join("") || `<tr><td class="left" colspan="10">No live data loaded. Add your Angel One backend feed URL in Data tab.</td></tr>`;
     }
 
     function renderSnapshot() {
@@ -4608,6 +4660,56 @@
       renderSnapshot();
     }
 
+    function snapshotContract(contract) {
+      return {
+        expiry: contract.expiry,
+        strike: contract.strike,
+        type: contract.type,
+        oi: contract.oi,
+        changeOI: contract.changeOI,
+        ltp: contract.ltp,
+        priceChange: contract.priceChange,
+        iv: contract.iv,
+        delta: contract.delta,
+        gamma: contract.gamma,
+        theta: contract.theta,
+        volume: contract.volume
+      };
+    }
+
+    function saveSnapshotCache() {
+      try {
+        localStorage.setItem(SNAPSHOT_CACHE_KEY, JSON.stringify({
+          contracts: state.contracts.map(snapshotContract),
+          sourceName: state.sourceName,
+          lastUpdated: state.lastUpdated ? state.lastUpdated.toISOString() : null,
+          refreshCount: state.refreshCount
+        }));
+      } catch (error) {}
+    }
+
+    function restoreSavedFeed() {
+      const savedUrl = storedFeedUrl();
+      if (!savedUrl) return false;
+      els.sourceUrlInput.value = savedUrl;
+      setDataSource({ kind: "url", url: savedUrl, label: "Saved URL" });
+      return true;
+    }
+
+    function restoreCachedSnapshot() {
+      const snapshot = storedSnapshot();
+      if (!snapshot?.contracts?.length) return false;
+      state.contracts = enrichContracts(snapshot.contracts);
+      state.sourceName = snapshot.sourceName || "Last saved Angel One snapshot";
+      state.lastUpdated = reviveDate(snapshot.lastUpdated) || new Date();
+      state.refreshCount = Number(snapshot.refreshCount) || 0;
+      state.lastAutoError = "";
+      populateExpirySelect();
+      analyse();
+      els.importStatus.innerHTML = `<span class="badge watch">Cached data</span><span>Showing last saved ${state.contracts.length} contracts from ${formatIstClock(state.lastUpdated)}. Auto Start will refresh from Angel One when market is open.</span>`;
+      return true;
+    }
+
     function loadContracts(contracts, sourceName) {
       state.contracts = enrichContracts(contracts);
       state.sourceName = sourceName;
@@ -4615,6 +4717,7 @@
       state.lastAutoError = "";
       populateExpirySelect();
       analyse();
+      saveSnapshotCache();
       els.importStatus.innerHTML = `<span class="badge good">Loaded</span><span>${state.contracts.length} contracts from ${escapeHtml(sourceName)} at ${formatIstClock(state.lastUpdated)}</span>`;
       updateAutoControls();
     }
@@ -4718,9 +4821,20 @@
     });
     els.alertToggleBtn.addEventListener("click", toggleAlerts);
 
-    populateExpirySelect();
-    renderAll();
-    updateAutoControls();
+    const hasSavedFeed = restoreSavedFeed();
+    const hasCachedData = restoreCachedSnapshot();
+    if (!hasCachedData) {
+      populateExpirySelect();
+      renderAll();
+      if (hasSavedFeed) {
+        els.importStatus.innerHTML = `<span class="badge watch">Feed saved</span><span>Saved Angel One feed URL found. Press Load URL for manual refresh or Auto Start during market hours.</span>`;
+      }
+    }
+    if (hasSavedFeed && storedAutoEnabled()) {
+      window.setTimeout(startAutoUpdate, 0);
+    } else {
+      updateAutoControls();
+    }
     updateAlertControls();
   </script>
 </body>
