@@ -19,6 +19,10 @@ The current NSE website flow uses the NSE option-chain page plus:
 
 `https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=...`
 
+The website default feed is the raw GitHub DAT URL because it updates faster than GitHub Pages file cache:
+
+`https://raw.githubusercontent.com/pjalpesh1/nifty-option-analyse/main/data/nifty-options.dat`
+
 The parser supports official NSE option-chain JSON plus flat JSON/CSV/DAT rows with expiry, strike, CE/PE type, OI, change OI, LTP, IV, Greeks, and volume. DAT files can be comma, pipe (`|`), tab, or semicolon delimited.
 
 Because GitHub Pages is static, direct browser fetch from NSE can be blocked by NSE cookies/CORS/session protection. If direct Load URL fails, use a small HTTPS NSE proxy that fetches the same NSE JSON server-side and enables CORS for this page, or host a generated `.dat` file on an HTTPS URL.
