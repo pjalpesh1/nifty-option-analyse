@@ -9,9 +9,15 @@ Static dashboard for NIFTY option-chain scanning using NSE option-chain data.
 
 ## NSE Site Data
 
-The dashboard defaults to the NSE NIFTY option-chain JSON URL:
+Easiest free updater:
 
-`https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY`
+- `START_NSE_SITE_DATA.bat` - reads NSE website option-chain data, writes `data/nifty-options.dat`, and uploads it every minute when data changes.
+- `run_nse_site_data_1min.ps1` - updater used by the BAT file.
+- `READ_ME_NSE_SITE_DATA.txt` - quick instructions.
+
+The current NSE website flow uses the NSE option-chain page plus:
+
+`https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=...`
 
 The parser supports official NSE option-chain JSON plus flat JSON/CSV/DAT rows with expiry, strike, CE/PE type, OI, change OI, LTP, IV, Greeks, and volume. DAT files can be comma, pipe (`|`), tab, or semicolon delimited.
 
