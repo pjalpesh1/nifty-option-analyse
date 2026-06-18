@@ -2262,8 +2262,8 @@
             </div>
             <div class="panel-body stack">
               <div class="field">
-                <label for="sourceUrlInput">Live JSON / CSV URL</label>
-                <input id="sourceUrlInput" type="url" placeholder="https://your-cloud-feed.com/option-chain.json">
+                <label for="sourceUrlInput">Live JSON / CSV / Angel Proxy URL</label>
+                <input id="sourceUrlInput" type="url" placeholder="https://your-cloud-feed.com/angel-nifty-options.json">
               </div>
               <div class="actions">
                 <button type="button" class="btn primary" id="loadUrlBtn"><span class="icon refresh"></span>Load URL</button>
@@ -2277,6 +2277,38 @@
                 <button type="button" class="btn primary" id="pasteAnalyseBtn"><span class="icon play"></span>Load Paste</button>
               </div>
               <div class="status" id="importStatus"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Angel One Live Setup</h2>
+              <span>SmartAPI proxy required</span>
+            </div>
+            <div class="panel-body stack">
+              <div class="guard-list">
+                <div class="guard-item watch">
+                  <span>Status</span>
+                  <b>SmartAPI page check: No Apps Added. Add one app first to generate API credentials.</b>
+                </div>
+                <div class="guard-item info">
+                  <span>App Form</span>
+                  <b>Use App Name, Redirect URL, and Primary Static IP from your secure backend/cloud server.</b>
+                </div>
+                <div class="guard-item bad">
+                  <span>Security</span>
+                  <b>Do not enter Angel password, PIN, TOTP, API key, JWT, or feed token inside this public webpage.</b>
+                </div>
+                <div class="guard-item good">
+                  <span>Feed URL</span>
+                  <b>Deploy a backend proxy, then paste its HTTPS JSON/CSV feed URL above and press Load URL.</b>
+                </div>
+              </div>
+              <pre class="sample-format">Expected proxy output:
+[
+  {"expiry":"2026-06-25","strike":24100,"type":"CE","oi":125430,"changeOI":8400,"ltp":142.5,"priceChange":18.2,"iv":13.8,"delta":0.54,"gamma":0.0019,"theta":-8.2,"volume":25560},
+  {"expiry":"2026-06-25","strike":24100,"type":"PE","oi":113870,"changeOI":-2200,"ltp":91.7,"priceChange":-11.5,"iv":14.1,"delta":-0.46,"gamma":0.0018,"theta":-7.6,"volume":21980}
+]</pre>
             </div>
           </section>
 
@@ -3260,6 +3292,7 @@
       const search = els.searchInput.value.trim().toLowerCase();
       const rows = state.analysis.flatMap(a => a.rows.map(row => ({ ...row, analysis: a })));
       const filtered = rows
+        .filter(row => row.build.label === "CE Buy" || row.build.label === "PE Buy")
         .filter(row => row.analysis.focusStrikes?.has(row.strike))
         .filter(row => row.score >= minScore)
         .filter(row => {
@@ -3274,7 +3307,7 @@
           return b.score - a.score;
         })
         .slice(0, 15);
-      els.scannerSubtitle.textContent = filtered.length + " near-ATM setups above score " + minScore;
+      els.scannerSubtitle.textContent = filtered.length + " near-ATM buy signals above score " + minScore;
       els.scannerTable.innerHTML = filtered.map(row => `
         <tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
           <td class="left" data-label="Setup"><span class="badge ${row.build.className}">${escapeHtml(row.build.label)}</span></td>
@@ -3290,7 +3323,7 @@
           <td data-label="Delta">${fmt(row.delta, 3)}</td>
           <td data-label="Gamma">${fmt(row.gamma, 5)}</td>
           <td data-label="Theta">${fmt(row.theta, 2)}</td>
-        </tr>`).join("") || `<tr><td class="left" colspan="13">No setups match the current filters.</td></tr>`;
+        </tr>`).join("") || `<tr><td class="left" colspan="13">No CE/PE buy signals match the current filters.</td></tr>`;
       renderMobileScannerCards(filtered);
     }
 
