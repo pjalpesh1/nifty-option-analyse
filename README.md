@@ -33,6 +33,12 @@ Auto Start refreshes during NSE regular market time, Monday-Friday 09:15 to 15:3
 
 The browser remembers the last NSE feed URL, Auto Start preference, and last successful option-chain snapshot locally, so reopening the site can still show the last saved data while waiting for the next live refresh.
 
+## Analysis Features
+
+The scanner combines OI build-up, change in OI, volume, IV, Greeks, ATM distance, premium score, local AI paper-trade memory, and a lightweight option-flow proxy based on unusual volume/OI behavior. The dashboard also tracks spot history in the browser to build MA, RSI, Bollinger, and MACD context from successful live updates.
+
+The Strategy tab includes ATM straddle expected move, IV-based expected move, multi-leg strategy cards, and an expiry payoff chart for the top suggested strategy. Calculations are for analysis/paper mode and do not include brokerage, slippage, taxes, or real order execution.
+
 ## GitHub Auto Update
 
 The repository includes a GitHub Actions workflow:
