@@ -38,7 +38,7 @@ if not defined GH_EXE (
 echo.
 echo This uses NSE website data, no Angel One and no Dhan token.
 echo Keep this black window open.
-echo Website feed URL: data/nifty-options.dat
+echo Website feed URL: https://raw.githubusercontent.com/pjalpesh1/nifty-option-analyse/main/data/nifty-options.dat
 echo Update cycle: every 60 seconds
 echo.
 echo Starting NSE updater...
