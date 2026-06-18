@@ -142,7 +142,8 @@ function Export-NseChainToDat {
     "delta",
     "gamma",
     "theta",
-    "totalTradedVolume"
+    "totalTradedVolume",
+    "underlyingValue"
   )
 
   $lines = New-Object System.Collections.Generic.List[string]
@@ -190,7 +191,8 @@ function Export-NseChainToDat {
           (Get-DictValue $leg @("delta")),
           (Get-DictValue $leg @("gamma")),
           (Get-DictValue $leg @("theta")),
-          (Get-DictValue $leg @("totalTradedVolume"))
+          (Get-DictValue $leg @("totalTradedVolume")),
+          $spot
         )
         $lines.Add((($fields | ForEach-Object { Convert-ToDatValue $_ }) -join "|"))
         $rowCount += 1
