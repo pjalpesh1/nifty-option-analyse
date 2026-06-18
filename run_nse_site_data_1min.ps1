@@ -17,6 +17,7 @@ $ErrorActionPreference = "Stop"
 $culture = [System.Globalization.CultureInfo]::InvariantCulture
 $NseBaseUrl = "https://www.nseindia.com"
 $OptionChainPage = "$NseBaseUrl/option-chain"
+$RawDatUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Branch/$RepoPath"
 $UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
 Add-Type -AssemblyName System.Web.Extensions
@@ -292,7 +293,7 @@ Write-Host "NSE site DAT updater started. Press Ctrl+C to stop."
 Write-Host "Source: $OptionChainPage"
 Write-Host "Symbol: $Symbol"
 Write-Host "DAT:    $LocalDatPath"
-Write-Host "Web:    https://$RepoOwner.github.io/$RepoName/$RepoPath"
+Write-Host "Feed:   $RawDatUrl"
 Write-Host "Note: NSE free site data can be delayed/blocked by NSE. This script never uploads blank data."
 
 do {
