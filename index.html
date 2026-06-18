@@ -1096,19 +1096,46 @@
     }
 
     .atm-row td {
-      background: #fffaf0;
+      background: #fff7ed;
+      border-top: 2px solid #f59e0b;
+      border-bottom: 2px solid #f59e0b;
     }
 
     .chain-table tbody tr.atm-row td:nth-child(-n + 9) {
-      background: #e5f8ef;
+      background: #dcfce7;
     }
 
     .chain-table tbody tr.atm-row td:nth-child(n + 11) {
-      background: #ffe8eb;
+      background: #ffe4e6;
     }
 
     .chain-table tbody tr.atm-row td.strike {
-      background: #ffffff;
+      background: #fffbeb;
+      color: #92400e;
+      box-shadow: inset 0 0 0 2px #f59e0b, 1px 0 0 var(--line);
+    }
+
+    .atm-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 6px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #f59e0b;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 900;
+      vertical-align: middle;
+    }
+
+    .spot-gap {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
     }
 
     #buildupTable th:nth-child(n + 2):nth-child(-n + 5),
@@ -1145,6 +1172,11 @@
       border-radius: var(--radius);
       background: var(--surface);
       overflow: hidden;
+    }
+
+    .chain-card.atm-row {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
     }
 
     .chain-card-head {
@@ -2503,7 +2535,7 @@
   {"expiry":"2026-06-25","strike":24100,"type":"PE","oi":113870,"changeOI":-2200,"ltp":91.7,"priceChange":-11.5,"iv":14.1,"delta":-0.46,"gamma":0.0018,"theta":-7.6,"volume":21980}
 ]
 
-Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.</pre>
+Official NSE JSON from /api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=... is also supported.</pre>
             </div>
           </section>
 
@@ -2514,13 +2546,13 @@ Official NSE JSON from /api/option-chain-indices?symbol=NIFTY is also supported.
             </div>
             <div class="panel-body stack">
               <pre class="sample-format">CSV:
-expiryDate,strikePrice,optionType,openInterest,changeinOpenInterest,lastPrice,change,impliedVolatility,delta,gamma,theta,totalTradedVolume
-27-Jun-2026,24100,CE,125430,8400,142.5,18.2,13.8,0.54,0.0019,-8.2,25560
-27-Jun-2026,24100,PE,113870,-2200,91.7,-11.5,14.1,-0.46,0.0018,-7.6,21980
+expiryDate,strikePrice,optionType,openInterest,changeinOpenInterest,lastPrice,change,impliedVolatility,delta,gamma,theta,totalTradedVolume,underlyingValue
+27-Jun-2026,24100,CE,125430,8400,142.5,18.2,13.8,0.54,0.0019,-8.2,25560,24168
+27-Jun-2026,24100,PE,113870,-2200,91.7,-11.5,14.1,-0.46,0.0018,-7.6,21980,24168
 
 DAT pipe format:
-expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|change|impliedVolatility|delta|gamma|theta|totalTradedVolume
-27-Jun-2026|24100|CE|125430|8400|142.5|18.2|13.8|0.54|0.0019|-8.2|25560</pre>
+expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|change|impliedVolatility|delta|gamma|theta|totalTradedVolume|underlyingValue
+27-Jun-2026|24100|CE|125430|8400|142.5|18.2|13.8|0.54|0.0019|-8.2|25560|24168</pre>
               <div class="table-wrap">
                 <table id="dataPreviewTable">
                   <thead>
@@ -2900,6 +2932,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
           gamma: asNumber(c.gamma),
           theta: asNumber(c.theta),
           volume: asNumber(c.volume ?? c.totalTradedVolume),
+          underlyingValue: asNumber(c.underlyingValue ?? c.spot ?? c.spotPrice ?? c.niftySpot ?? c.indexSpot),
           source: c.source || ""
         }))
         .filter(c => c.expiry && c.strike > 0 && (c.type === "CE" || c.type === "PE"));
@@ -3063,7 +3096,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
             delta: leg.delta ?? greeks.delta,
             gamma: leg.gamma ?? greeks.gamma,
             theta: leg.theta ?? greeks.theta,
-            volume: leg.totalTradedVolume
+            volume: leg.totalTradedVolume,
+            underlyingValue: leg.underlyingValue ?? row.underlyingValue ?? data?.records?.underlyingValue ?? data?.filtered?.underlyingValue ?? data?.underlyingValue
           });
         }
       }
@@ -3132,8 +3166,14 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         delta: get(row, ["delta"]),
         gamma: get(row, ["gamma"]),
         theta: get(row, ["theta"]),
-        volume: get(row, ["totaltradedvolume", "volume"])
+        volume: get(row, ["totaltradedvolume", "volume"]),
+        underlyingValue: get(row, ["underlyingvalue", "spot", "spotprice", "niftyspot", "indexspot"])
       }));
+    }
+
+    function updateSpotFromContracts(contracts) {
+      const spot = contracts.map(c => asNumber(c.underlyingValue, 0)).find(value => value > 0);
+      if (spot > 0) els.spotInput.value = spot;
     }
 
     function parseInput(text) {
@@ -4558,6 +4598,13 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       els.alertButtonText.textContent = state.alertsEnabled ? "Alerts On" : "Alerts Off";
     }
 
+    function strikeSpotGapLabel(strike, spot) {
+      const gap = strike - spot;
+      if (!Number.isFinite(gap)) return "";
+      if (Math.abs(gap) < 0.01) return "Spot";
+      return (gap > 0 ? "+" : "") + fmt(gap, 2);
+    }
+
     function renderChain() {
       const a = state.activeAnalysis;
       if (!a) {
@@ -4577,6 +4624,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       els.chainTable.innerHTML = rows.map(({ strike, pair }) => {
         const ce = pair.CE;
         const pe = pair.PE;
+        const isAtm = strike === a.atmStrike;
         return `<tr class="${strike === a.atmStrike ? "atm-row" : ""}">
           ${chainCell(ce, "signal")}
           ${chainCell(ce, "score")}
@@ -4587,7 +4635,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
           ${chainCell(ce, "delta")}
           ${chainCell(ce, "gamma")}
           ${chainCell(ce, "theta")}
-          <td class="strike">${fmt(strike)}</td>
+          <td class="strike">${fmt(strike)}${isAtm ? `<span class="atm-pill">ATM</span><span class="spot-gap">${strikeSpotGapLabel(strike, spot)} vs spot</span>` : `<span class="spot-gap">${strikeSpotGapLabel(strike, spot)}</span>`}</td>
           ${chainCell(pe, "theta")}
           ${chainCell(pe, "gamma")}
           ${chainCell(pe, "delta")}
@@ -4603,6 +4651,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     }
 
     function renderMobileChain(a, rows) {
+      const spot = asNumber(els.spotInput.value, 0);
       const atmIndex = rows.findIndex(row => row.strike === a.atmStrike);
       const start = clamp(atmIndex - 4, 0, rows.length - 1);
       const end = clamp(atmIndex + 4, 0, rows.length - 1);
@@ -4611,7 +4660,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         const isAtm = strike === a.atmStrike;
         return `<article class="chain-card ${isAtm ? "atm-row" : ""}">
           <div class="chain-card-head">
-            <span>Strike ${fmt(strike)}</span>
+            <span>Strike ${fmt(strike)}<span class="spot-gap">${strikeSpotGapLabel(strike, spot)} vs spot</span></span>
             ${isAtm ? `<span class="badge watch">ATM</span>` : `<span class="badge neutral">${strike > a.atmStrike ? "Above ATM" : "Below ATM"}</span>`}
           </div>
           <div class="chain-card-body">
@@ -4816,7 +4865,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         delta: contract.delta,
         gamma: contract.gamma,
         theta: contract.theta,
-        volume: contract.volume
+        volume: contract.volume,
+        underlyingValue: contract.underlyingValue
       };
     }
 
@@ -4855,6 +4905,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
 
     function loadContracts(contracts, sourceName) {
       state.contracts = enrichContracts(contracts);
+      updateSpotFromContracts(state.contracts);
       state.sourceName = sourceName;
       state.lastUpdated = new Date();
       state.lastAutoError = "";
