@@ -492,44 +492,55 @@
       background: var(--surface);
     }
 
-    .tabs {
+    .content-shell {
       width: min(1540px, calc(100% - 28px));
       margin: 14px auto 0;
-      display: flex;
-      gap: 6px;
-      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 178px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .tabs {
+      display: grid;
+      gap: 8px;
+      position: sticky;
+      top: 88px;
+      max-height: calc(100vh - 106px);
       overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 10px 24px rgba(20, 24, 32, 0.07);
+      padding: 10px;
     }
 
     .tab {
-      border: 1px solid transparent;
-      border-bottom: 0;
-      background: transparent;
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
       color: var(--muted);
-      min-height: 42px;
-      padding: 10px 14px;
-      font-weight: 800;
-      border-top-left-radius: var(--radius-sm);
-      border-top-right-radius: var(--radius-sm);
+      min-height: 44px;
+      padding: 10px 12px;
+      font-weight: 850;
+      border-radius: var(--radius-sm);
       white-space: nowrap;
+      text-align: left;
     }
 
     .tab.active {
-      background: var(--surface);
-      border-color: var(--line);
-      color: var(--ink);
-      transform: translateY(1px);
+      background: var(--ink);
+      border-color: var(--ink);
+      color: white;
+      transform: none;
     }
 
-    .tab.home-tab,
     .utility-action {
       display: none;
     }
 
     main {
-      width: min(1540px, calc(100% - 28px));
-      margin: 0 auto;
-      padding: 14px 0 34px;
+      min-width: 0;
+      padding: 0 0 34px;
     }
 
     .view {
@@ -1349,6 +1360,72 @@
       border-color: #a6dbe4;
     }
 
+    .closed-position-card {
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      padding: 12px;
+    }
+
+    .closed-position-card.good {
+      background: var(--green-soft);
+      border-color: #a8d8c1;
+    }
+
+    .closed-position-card.bad {
+      background: var(--red-soft);
+      border-color: #f3b6bc;
+    }
+
+    .closed-position-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 10px;
+    }
+
+    .closed-position-head b {
+      display: block;
+      line-height: 1.25;
+    }
+
+    .closed-position-head small,
+    .closed-note {
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .closed-details {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .closed-details span {
+      display: grid;
+      gap: 3px;
+      border: 1px solid rgba(20, 24, 32, 0.09);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.72);
+      padding: 8px;
+      min-width: 0;
+    }
+
+    .closed-details small {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 850;
+    }
+
+    .closed-details b {
+      font-size: 13px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
     .strategy-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1469,6 +1546,10 @@
     }
 
     @media (max-width: 1280px) {
+      .content-shell {
+        grid-template-columns: 148px minmax(0, 1fr);
+      }
+
       .summary-grid {
         grid-template-columns: repeat(3, minmax(150px, 1fr));
       }
@@ -1495,6 +1576,23 @@
       .topbar-inner,
       .toolbar-inner {
         grid-template-columns: 1fr;
+      }
+
+      .content-shell {
+        width: min(100% - 18px, 1540px);
+        grid-template-columns: 124px minmax(0, 1fr);
+        gap: 9px;
+      }
+
+      .tabs {
+        top: 10px;
+        padding: 7px;
+      }
+
+      .tab {
+        min-height: 40px;
+        padding: 8px 9px;
+        font-size: 12px;
       }
 
       .market-strip {
@@ -1527,9 +1625,14 @@
     @media (max-width: 560px) {
       .topbar-inner,
       .toolbar-inner,
-      .tabs,
       main {
         width: min(100% - 18px, 1540px);
+      }
+
+      .content-shell {
+        display: block;
+        width: 100%;
+        margin: 0;
       }
 
       body {
@@ -1586,10 +1689,12 @@
 
       .tabs {
         position: fixed;
+        top: auto;
         left: 0;
         right: 0;
         bottom: 0;
         z-index: 40;
+        max-height: none;
         width: 100%;
         margin: 0;
         padding: 7px 8px 9px;
@@ -1599,6 +1704,7 @@
         background: rgba(255, 255, 255, 0.96);
         box-shadow: 0 -8px 22px rgba(20, 24, 32, 0.12);
         justify-content: space-between;
+        display: flex;
       }
 
       .tab {
@@ -1610,16 +1716,17 @@
         background: var(--surface-soft);
         font-size: 11px;
         line-height: 1.1;
+        text-align: center;
       }
 
       .tab.active {
-        transform: none;
         background: var(--ink);
         color: white;
         border-color: var(--ink);
       }
 
       main {
+        margin: 0 auto;
         padding-top: 10px;
       }
 
@@ -1804,6 +1911,10 @@
       }
 
       .mini-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .closed-details {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
@@ -2001,16 +2112,17 @@
       </div>
     </section>
 
-    <nav class="tabs" aria-label="Dashboard views">
-      <button type="button" class="tab home-tab active" data-view="scannerView" hidden>Scanner</button>
-      <button type="button" class="tab" data-view="signalView">Signals</button>
-      <button type="button" class="tab" data-view="positionView">Position</button>
-      <button type="button" class="tab" data-view="chainView">Option Chain</button>
-      <button type="button" class="tab" data-view="strategyView">Strategy</button>
-      <button type="button" class="tab" data-view="dataView">Data</button>
-    </nav>
+    <div class="content-shell">
+      <nav class="tabs" aria-label="Dashboard views">
+        <button type="button" class="tab home-tab active" data-view="scannerView">Scanner</button>
+        <button type="button" class="tab" data-view="signalView">Signals</button>
+        <button type="button" class="tab" data-view="positionView">Position</button>
+        <button type="button" class="tab" data-view="chainView">Option Chain</button>
+        <button type="button" class="tab" data-view="strategyView">Strategy</button>
+        <button type="button" class="tab" data-view="dataView">Data</button>
+      </nav>
 
-    <main>
+      <main>
       <section class="view active" id="scannerView">
         <div class="mobile-cockpit" id="mobileCockpit"></div>
         <div class="summary-grid" id="summaryGrid"></div>
@@ -2344,12 +2456,14 @@
           </section>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   </div>
 
   <script>
     const AUTO_INTERVAL_OPTIONS = [60000, 300000, 900000, 3600000];
     const DEFAULT_AUTO_INTERVAL_MS = 60000;
+    const POSITION_HISTORY_KEY = "niftyPaperPositionHistory";
 
     function storedAutoIntervalMs() {
       try {
@@ -2357,6 +2471,32 @@
         return AUTO_INTERVAL_OPTIONS.includes(value) ? value : DEFAULT_AUTO_INTERVAL_MS;
       } catch (error) {
         return DEFAULT_AUTO_INTERVAL_MS;
+      }
+    }
+
+    function reviveDate(value) {
+      if (!value) return null;
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function revivePositionHistoryItem(item) {
+      return {
+        ...item,
+        openedAt: reviveDate(item.openedAt),
+        updatedAt: reviveDate(item.updatedAt),
+        closedAt: reviveDate(item.closedAt)
+      };
+    }
+
+    function storedPositionHistory() {
+      try {
+        const raw = localStorage.getItem(POSITION_HISTORY_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.map(revivePositionHistoryItem).slice(0, 50) : [];
+      } catch (error) {
+        return [];
       }
     }
 
@@ -2382,10 +2522,16 @@
       lastSignalKey: "",
       signalHistory: [],
       paperPosition: null,
-      positionHistory: [],
+      positionHistory: storedPositionHistory(),
       lastPositionExitKey: "",
       paperEntryArmed: false
     };
+
+    function savePositionHistory() {
+      try {
+        localStorage.setItem(POSITION_HISTORY_KEY, JSON.stringify(state.positionHistory.slice(0, 50)));
+      } catch (error) {}
+    }
 
     const els = {
       spotInput: document.getElementById("spotInput"),
@@ -2909,6 +3055,7 @@
 
     function tickAutoUpdate() {
       if (!state.autoEnabled) return;
+      markPaperPositionLive();
       if (!state.updateInFlight && state.nextUpdateAt && Date.now() >= state.nextUpdateAt) {
         refreshLiveData();
         return;
@@ -3621,6 +3768,7 @@
         entryRefresh: state.refreshCount,
         entrySource: state.sourceName,
         updates: 0,
+        liveTicks: 0,
         note,
         reason: signalReason(row)
       };
@@ -3640,8 +3788,14 @@
       position.current = exitPrice;
       position.closedAt = new Date();
       position.updatedAt = new Date();
+      position.closeRefresh = state.refreshCount;
+      position.durationMs = position.openedAt ? Math.max(0, position.closedAt.getTime() - position.openedAt.getTime()) : 0;
+      const pnl = positionPnl(position);
+      position.pnlValue = pnl.value;
+      position.pnlPct = pnl.pct;
       state.positionHistory.unshift({ ...position });
-      state.positionHistory = state.positionHistory.slice(0, 10);
+      state.positionHistory = state.positionHistory.slice(0, 50);
+      savePositionHistory();
       state.lastPositionExitKey = position.key;
       state.paperPosition = null;
     }
@@ -3674,6 +3828,39 @@
       } else {
         position.note = "Auto paper position live";
       }
+    }
+
+    function livePaperMark(position, row) {
+      const base = row?.ltp || position.current || position.entry;
+      const openedAt = reviveDate(position.openedAt) || new Date();
+      const ageSeconds = Math.max(0, (Date.now() - openedAt.getTime()) / 1000);
+      const seed = position.strike / 50 + (position.type === "CE" ? 1.7 : 2.9);
+      const amplitude = clamp(position.initialRisk * 0.12, 0.25, Math.max(0.35, position.entry * 0.025));
+      const pulse = Math.sin(ageSeconds * 0.95 + seed) * amplitude;
+      const drift = Math.sin((state.demoTick + 1) * 0.8 + ageSeconds * 0.13) * amplitude * 0.45;
+      const thetaDrag = Math.min(ageSeconds / 60, 1) * Math.abs(position.theta || 0) * 0.012;
+      return clamp(base + pulse + drift - thetaDrag, 0.05, Math.max(base + amplitude * 4, position.entry * 1.65));
+    }
+
+    function markPaperPositionLive() {
+      const position = state.paperPosition;
+      if (!position || position.status !== "OPEN") return false;
+      if (!state.autoEnabled || state.updateInFlight || state.dataSource?.kind !== "demo") return false;
+      const row = findPositionRow(position);
+      const mark = livePaperMark(position, row);
+      position.current = mark;
+      position.maxPrice = Math.max(position.maxPrice, mark);
+      position.updatedAt = new Date();
+      position.liveTicks = (position.liveTicks || 0) + 1;
+      position.note = "Live paper mark-to-market";
+      if (position.current >= position.target) {
+        closePaperPosition("Target hit on live mark", position.current);
+      } else if (position.current <= position.stop) {
+        closePaperPosition("Stop loss hit on live mark", position.current);
+      }
+      renderPositionTab();
+      renderSnapshot();
+      return true;
     }
 
     function updatePositionEngine() {
@@ -3712,7 +3899,53 @@
     }
 
     function timeLabel(value) {
-      return value ? value.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+      const date = reviveDate(value);
+      return date ? date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+    }
+
+    function dateTimeLabel(value) {
+      const date = reviveDate(value);
+      return date ? date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+    }
+
+    function durationLabel(ms) {
+      const total = Math.max(0, Math.floor(asNumber(ms, 0) / 1000));
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      return minutes ? minutes + "m " + String(seconds).padStart(2, "0") + "s" : seconds + "s";
+    }
+
+    function closedDetail(label, value) {
+      return `<span><small>${escapeHtml(label)}</small><b>${value}</b></span>`;
+    }
+
+    function renderClosedPosition(item) {
+      const pnl = positionPnl(item);
+      const duration = item.durationMs || (reviveDate(item.closedAt)?.getTime() || 0) - (reviveDate(item.openedAt)?.getTime() || 0);
+      return `<article class="closed-position-card ${pnl.className}">
+        <div class="closed-position-head">
+          <div>
+            <b>${escapeHtml(item.signal)} ${fmt(item.strike)} ${item.type}</b>
+            <small>${prettyDate(item.expiry)} ${escapeHtml(item.expiryType || "")} / ${escapeHtml(item.exitReason || "Closed")}</small>
+          </div>
+          <span class="badge ${pnl.className}">${pnl.label}</span>
+        </div>
+        <div class="closed-details">
+          ${closedDetail("Entry", fmt(item.entry, 2))}
+          ${closedDetail("Exit", fmt(item.exitPrice || item.current, 2))}
+          ${closedDetail("P/L", pnl.label + " / " + pct(pnl.pct, 2))}
+          ${closedDetail("Target", fmt(item.target, 2))}
+          ${closedDetail("Stop", fmt(item.stop, 2))}
+          ${closedDetail("Max", fmt(item.maxPrice, 2))}
+          ${closedDetail("Opened", dateTimeLabel(item.openedAt))}
+          ${closedDetail("Closed", dateTimeLabel(item.closedAt))}
+          ${closedDetail("Duration", durationLabel(duration))}
+          ${closedDetail("Entry Ref", fmt(item.entryRefresh || 0))}
+          ${closedDetail("Close Ref", fmt(item.closeRefresh || 0))}
+          ${closedDetail("Ticks", fmt(item.liveTicks || 0))}
+        </div>
+        <div class="closed-note">${escapeHtml(item.reason || item.note || "")}</div>
+      </article>`;
     }
 
     function renderPositionTab() {
@@ -3736,7 +3969,8 @@
           card("Signal", position.signal, fmt(position.strike) + " " + position.type + " / " + position.bias, position.biasClass),
           card("Live P/L", pnl.label, pct(pnl.pct, 2) + " per option unit", pnl.className),
           card("Risk", "T " + fmt(position.target, 2), "SL " + fmt(position.stop, 2), "info"),
-          card("Updates", fmt(position.updates), "Last " + timeLabel(position.updatedAt), "neutral")
+          card("Updates", fmt(position.updates), "Scanner refresh count", "neutral"),
+          card("Live Tick", fmt(position.liveTicks || 0), "Last " + timeLabel(position.updatedAt), "info")
         ].join("");
         els.positionCard.innerHTML = `
           <article class="position-ticket ${position.optionClass}">
@@ -3760,6 +3994,7 @@
                 ${mini("Score", fmt(position.score, 0))}
                 ${mini("Chg OI", fmtCompact(position.changeOI))}
                 ${mini("IV", pct(position.iv, 2))}
+                ${mini("Live Ticks", fmt(position.liveTicks || 0))}
               </div>
               <div class="position-note">${escapeHtml(position.note)}. ${escapeHtml(position.reason)}</div>
             </div>
@@ -3769,13 +4004,7 @@
         els.positionHistory.innerHTML = `<div class="empty">No closed paper positions yet.</div>`;
         return;
       }
-      els.positionHistory.innerHTML = state.positionHistory.map(item => {
-        const pnl = positionPnl(item);
-        return `<div class="history-item ${pnl.className}">
-          <span>${timeLabel(item.closedAt)}</span>
-          <b>${escapeHtml(item.signal)} ${fmt(item.strike)} ${item.type} - ${escapeHtml(item.exitReason)} - P/L ${pnl.label} (${pct(pnl.pct, 2)})</b>
-        </div>`;
-      }).join("");
+      els.positionHistory.innerHTML = state.positionHistory.map(renderClosedPosition).join("");
     }
 
     function renderEngine() {
