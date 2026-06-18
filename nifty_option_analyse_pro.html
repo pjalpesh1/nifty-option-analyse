@@ -2423,7 +2423,7 @@
                 </div>
                 <div class="guard-item good">
                   <span>Market Time</span>
-                  <b>Scanner auto-update uses India time: Monday-Friday, 09:15 to 15:30 IST, then pauses until the next open.</b>
+                  <b>Scanner auto-update uses India time: Monday-Friday, 09:15 to 15:30 IST, and skips the loaded NSE 2026 trading holidays.</b>
                 </div>
               </div>
               <pre class="sample-format">Expected proxy output:
@@ -2481,6 +2481,24 @@
     const IST_OFFSET_MINUTES = 5 * 60 + 30;
     const DAY_MS = 24 * 60 * 60 * 1000;
     const MARKET_WEEKDAYS = new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+    const NSE_TRADING_HOLIDAYS = {
+      "2026-01-15": "Municipal Corporation Election - Maharashtra",
+      "2026-01-26": "Republic Day",
+      "2026-03-03": "Holi",
+      "2026-03-26": "Shri Ram Navami",
+      "2026-03-31": "Shri Mahavir Jayanti",
+      "2026-04-03": "Good Friday",
+      "2026-04-14": "Dr. Baba Saheb Ambedkar Jayanti",
+      "2026-05-01": "Maharashtra Day",
+      "2026-05-28": "Bakri Id",
+      "2026-06-26": "Muharram",
+      "2026-09-14": "Ganesh Chaturthi",
+      "2026-10-02": "Mahatma Gandhi Jayanti",
+      "2026-10-20": "Dussehra",
+      "2026-11-10": "Diwali-Balipratipada",
+      "2026-11-24": "Prakash Gurpurb Sri Guru Nanak Dev",
+      "2026-12-25": "Christmas"
+    };
     const IST_PART_FORMATTER = new Intl.DateTimeFormat("en-GB", {
       timeZone: MARKET_TIMEZONE,
       weekday: "short",
@@ -3054,11 +3072,24 @@
       return MARKET_WEEKDAYS.has(parts.weekday);
     }
 
+    function istDateKey(parts) {
+      return [
+        parts.year,
+        String(parts.month).padStart(2, "0"),
+        String(parts.day).padStart(2, "0")
+      ].join("-");
+    }
+
+    function marketHolidayName(parts) {
+      return NSE_TRADING_HOLIDAYS[istDateKey(parts)] || "";
+    }
+
     function nextMarketOpenAt(nowMs, todayParts) {
       const istMidnightUtc = istWallTimeToUtcMs(todayParts, 0);
       for (let offset = 0; offset < 8; offset += 1) {
         const candidateParts = istParts(new Date(istMidnightUtc + offset * DAY_MS + 12 * 60 * 60 * 1000));
         if (!isMarketWeekday(candidateParts)) continue;
+        if (marketHolidayName(candidateParts)) continue;
         const openAt = istWallTimeToUtcMs(candidateParts, MARKET_OPEN_MINUTES);
         if (openAt > nowMs) return openAt;
       }
@@ -3071,12 +3102,16 @@
       const openAt = istWallTimeToUtcMs(parts, MARKET_OPEN_MINUTES);
       const closeAt = istWallTimeToUtcMs(parts, MARKET_CLOSE_MINUTES);
       const weekday = isMarketWeekday(parts);
-      const isOpen = weekday && nowMs >= openAt && nowMs < closeAt;
+      const holidayName = marketHolidayName(parts);
+      const isTradingDay = weekday && !holidayName;
+      const isOpen = isTradingDay && nowMs >= openAt && nowMs < closeAt;
       return {
         parts,
+        holidayName,
+        isTradingDay,
         isOpen,
-        isPreOpen: weekday && nowMs < openAt,
-        isAfterClose: weekday && nowMs >= closeAt,
+        isPreOpen: isTradingDay && nowMs < openAt,
+        isAfterClose: isTradingDay && nowMs >= closeAt,
         openAt,
         closeAt,
         nextOpenAt: isOpen ? openAt : nextMarketOpenAt(nowMs, parts)
@@ -3105,6 +3140,7 @@
 
     function marketStatusLabel(status = marketStatus()) {
       if (status.isOpen) return "Market open IST - closes " + formatIstClock(status.closeAt);
+      if (status.holidayName) return "Market holiday IST - " + status.holidayName + "; opens " + formatIstDateTime(status.nextOpenAt);
       if (status.isPreOpen) return "Market closed IST - opens today 09:15 IST";
       return "Market closed IST - opens " + formatIstDateTime(status.nextOpenAt);
     }
