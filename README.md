@@ -29,18 +29,16 @@ Files:
 
 - `nifty_option_data_cache.xlsx` - Excel template. Put live rows in the `OptionData` sheet.
 - `run_excel_dat_upload_1min.ps1` - Windows uploader. Exports Excel to `data/nifty-options.dat` and uploads it to GitHub Pages.
+- `START_HERE_AUTO_UPLOAD.bat` - easiest start file. Double-click this.
+- `TEST_EXCEL_EXPORT_ONLY.bat` - one-time local export test. No upload.
 
-Test export without upload:
+Simple use:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\run_excel_dat_upload_1min.ps1 -Once -NoUpload
-```
+1. Double-click `START_HERE_AUTO_UPLOAD.bat`.
+2. Excel opens.
+3. Put rows in `OptionData`.
+4. Save Excel.
+5. Keep the black uploader window open.
+6. Open the website and press `Load URL`, then `Auto Start`.
 
-Run every 60 seconds and upload to GitHub:
-
-```powershell
-gh auth login
-powershell -ExecutionPolicy Bypass -File .\run_excel_dat_upload_1min.ps1
-```
-
-You can also set `GITHUB_TOKEN` instead of using GitHub CLI. The script uploads only when the DAT content changes.
+GitHub login is needed only once. The start file checks it and opens login if required. You can also set `GITHUB_TOKEN` instead of using GitHub CLI. The script uploads only when the DAT content changes.
