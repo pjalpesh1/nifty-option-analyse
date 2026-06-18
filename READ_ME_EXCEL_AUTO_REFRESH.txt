@@ -13,6 +13,7 @@ What it does every 60 seconds:
 Important:
 - Excel must have data in OptionData, or a Power Query/connection that fills OptionData.
 - If OptionData is blank, website will show blank data.
+- If black window says "No option rows found", copy sample rows from sheet Sample into sheet OptionData, then save Excel.
 - Save is automatic every 60 seconds while the black window is open.
 - Keep Excel and black window open.
 
