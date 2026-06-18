@@ -42,3 +42,9 @@ Simple use:
 6. Open the website and press `Load URL`, then `Auto Start`.
 
 GitHub login is needed only once. The start file checks it and opens login if required. You can also set `GITHUB_TOKEN` instead of using GitHub CLI. The script uploads only when the DAT content changes.
+
+## DhanHQ Direct Data
+
+For DhanHQ direct option-chain data, use the local private launcher `START_DHAN_LIVE_DATA.bat`. It asks for the Dhan access token on the PC, fetches NIFTY option chain every 60 seconds, converts it to `data/nifty-options.dat`, and uploads only the DAT file to GitHub Pages.
+
+Do not put the Dhan access token inside the website.
