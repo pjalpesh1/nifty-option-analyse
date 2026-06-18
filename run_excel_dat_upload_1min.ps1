@@ -210,6 +210,9 @@ do {
       $lastHash = $hash
       $status = if ($uploaded) { "uploaded" } else { "local only" }
       Write-Host ("{0} rows exported, {1} at {2}" -f $rows, $status, (Get-Date -Format "HH:mm:ss"))
+      if ($rows -eq 0) {
+        Write-Warning "No option rows found. Add data in Excel sheet OptionData and save the file."
+      }
     } else {
       Write-Host ("No data change at {0}" -f (Get-Date -Format "HH:mm:ss"))
     }
