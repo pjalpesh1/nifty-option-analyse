@@ -46,6 +46,8 @@ GitHub login is needed only once. The start file checks it and opens login if re
 
 For automatic Excel refresh/save on the laptop, use `START_EXCEL_AUTO_REFRESH_SAVE_UPLOAD.bat`. Excel must already have data in `OptionData`, or a Power Query/connection that fills `OptionData`.
 
+If `OptionData` has 0 valid rows, upload is skipped so the website keeps the previous DAT data. For a quick test, copy rows from the `Sample` sheet into `OptionData`, then save Excel.
+
 ## DhanHQ Direct Data
 
 For DhanHQ direct option-chain data, use the local private launcher `START_DHAN_LIVE_DATA.bat`. It asks for the Dhan access token on the PC, fetches NIFTY option chain every 60 seconds, converts it to `data/nifty-options.dat`, and uploads only the DAT file to GitHub Pages.
