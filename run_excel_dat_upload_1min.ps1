@@ -9,6 +9,7 @@ param(
   [int]$IntervalSeconds = 60,
   [string]$GitHubToken = $env:GITHUB_TOKEN,
   [switch]$NoUpload,
+  [switch]$AllowEmptyUpload,
   [switch]$Once
 )
 
@@ -199,6 +200,15 @@ do {
   try {
     $rows = Export-ExcelToDat -WorkbookPath $ExcelPath -WorksheetName $SheetName -DatPath $LocalDatPath
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $LocalDatPath).Hash
+
+    if ($rows -eq 0 -and !$AllowEmptyUpload) {
+      Write-Warning "No option rows found in Excel sheet OptionData. Upload skipped so website keeps previous data."
+      Write-Warning "Paste option-chain rows under row 1 headers, save Excel, then wait for next cycle."
+      if ($hash -ne $lastHash) { $lastHash = $hash }
+      if ($Once) { break }
+      Start-Sleep -Seconds $IntervalSeconds
+      continue
+    }
 
     if ($hash -ne $lastHash) {
       if ($NoUpload) {
