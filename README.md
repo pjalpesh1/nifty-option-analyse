@@ -31,6 +31,7 @@ Files:
 - `run_excel_dat_upload_1min.ps1` - Windows uploader. Exports Excel to `data/nifty-options.dat` and uploads it to GitHub Pages.
 - `START_HERE_AUTO_UPLOAD.bat` - easiest start file. Double-click this.
 - `TEST_EXCEL_EXPORT_ONLY.bat` - one-time local export test. No upload.
+- `START_EXCEL_AUTO_REFRESH_SAVE_UPLOAD.bat` - opens Excel, refreshes queries/connections, saves, exports DAT, and uploads every 60 seconds.
 
 Simple use:
 
@@ -42,6 +43,8 @@ Simple use:
 6. Open the website and press `Load URL`, then `Auto Start`.
 
 GitHub login is needed only once. The start file checks it and opens login if required. You can also set `GITHUB_TOKEN` instead of using GitHub CLI. The script uploads only when the DAT content changes.
+
+For automatic Excel refresh/save on the laptop, use `START_EXCEL_AUTO_REFRESH_SAVE_UPLOAD.bat`. Excel must already have data in `OptionData`, or a Power Query/connection that fills `OptionData`.
 
 ## DhanHQ Direct Data
 
