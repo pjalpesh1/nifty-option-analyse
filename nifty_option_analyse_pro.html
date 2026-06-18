@@ -2669,10 +2669,27 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     function storedFeedUrl() {
       try {
         const savedUrl = localStorage.getItem(DATA_SOURCE_URL_KEY) || "";
-        return LEGACY_NSE_FEED_URLS.has(savedUrl) ? DEFAULT_NSE_OPTION_CHAIN_URL : (savedUrl || DEFAULT_NSE_OPTION_CHAIN_URL);
+        const normalizedUrl = normalizeFeedUrl(savedUrl);
+        if (normalizedUrl !== savedUrl) localStorage.setItem(DATA_SOURCE_URL_KEY, normalizedUrl);
+        return normalizedUrl;
       } catch (error) {
         return DEFAULT_NSE_OPTION_CHAIN_URL;
       }
+    }
+
+    function normalizeFeedUrl(url) {
+      const value = String(url || "").trim();
+      if (!value || LEGACY_NSE_FEED_URLS.has(value)) return DEFAULT_NSE_OPTION_CHAIN_URL;
+      try {
+        const liveUrl = new URL(value, window.location.href);
+        const host = liveUrl.hostname.toLowerCase();
+        const path = liveUrl.pathname.toLowerCase();
+        if (host.endsWith("nseindia.com")) return DEFAULT_NSE_OPTION_CHAIN_URL;
+        if (host.endsWith("github.io") && path.endsWith("/nifty-option-analyse/data/nifty-options.dat")) {
+          return DEFAULT_NSE_OPTION_CHAIN_URL;
+        }
+      } catch (error) {}
+      return value;
     }
 
     function saveFeedUrl(url) {
@@ -3211,6 +3228,11 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       updateAutoControls();
     }
 
+    function setDefaultFeedSource() {
+      els.sourceUrlInput.value = DEFAULT_NSE_OPTION_CHAIN_URL;
+      setDataSource({ kind: "url", url: DEFAULT_NSE_OPTION_CHAIN_URL, label: "Default DAT feed" });
+    }
+
     function dataSourceLabel() {
       if (!state.dataSource) return "NSE feed missing";
       if (state.dataSource.kind === "url") {
@@ -3247,6 +3269,28 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         const joiner = url.includes("?") ? "&" : "?";
         return url + joiner + "_ts=" + Date.now();
       }
+    }
+
+    function sameFeedUrl(left, right) {
+      try {
+        const leftUrl = new URL(left, window.location.href);
+        const rightUrl = new URL(right, window.location.href);
+        leftUrl.search = "";
+        rightUrl.search = "";
+        leftUrl.hash = "";
+        rightUrl.hash = "";
+        return leftUrl.toString() === rightUrl.toString();
+      } catch (error) {
+        return String(left || "").trim() === String(right || "").trim();
+      }
+    }
+
+    async function fetchContractsFromUrl(url) {
+      const response = await fetch(cacheBustUrl(url), { cache: "no-store" });
+      if (!response.ok) throw new Error("URL " + response.status);
+      const contracts = parseInput(await response.text());
+      if (!contracts.length) throw new Error("No contracts loaded");
+      return contracts;
     }
 
     function canRefreshOutsideMarket() {
@@ -3492,17 +3536,30 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       try {
         let contracts = [];
         let sourceName = dataSourceLabel();
+        let fallbackMessage = "";
         if (state.dataSource?.kind === "url") {
-          const response = await fetch(cacheBustUrl(state.dataSource.url), { cache: "no-store" });
-          if (!response.ok) throw new Error("URL " + response.status);
-          contracts = parseInput(await response.text());
+          const primaryUrl = normalizeFeedUrl(state.dataSource.url);
+          if (!sameFeedUrl(primaryUrl, state.dataSource.url)) {
+            els.sourceUrlInput.value = primaryUrl;
+            setDataSource({ kind: "url", url: primaryUrl, label: "Saved URL" });
+          }
+          try {
+            contracts = await fetchContractsFromUrl(primaryUrl);
+          } catch (primaryError) {
+            if (sameFeedUrl(primaryUrl, DEFAULT_NSE_OPTION_CHAIN_URL)) throw primaryError;
+            fallbackMessage = friendlyFetchError(primaryError);
+            setDefaultFeedSource();
+            contracts = await fetchContractsFromUrl(DEFAULT_NSE_OPTION_CHAIN_URL);
+          }
           sourceName = dataSourceLabel();
         } else {
           throw new Error("NSE option-chain URL required");
         }
-        if (!contracts.length) throw new Error("No contracts loaded");
         state.refreshCount += 1;
         loadContracts(contracts, sourceName);
+        if (fallbackMessage) {
+          els.importStatus.innerHTML = `<span class="badge watch">Fallback feed</span><span>Saved feed failed (${escapeHtml(fallbackMessage)}). Loaded ${state.contracts.length} contracts from raw GitHub DAT at ${formatIstClock(state.lastUpdated)}.</span>`;
+        }
         state.nextUpdateAt = state.autoEnabled ? nextAutoUpdateTime() : null;
       } catch (error) {
         const message = friendlyFetchError(error);
