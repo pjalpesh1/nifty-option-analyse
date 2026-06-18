@@ -2383,7 +2383,8 @@
       signalHistory: [],
       paperPosition: null,
       positionHistory: [],
-      lastPositionExitKey: ""
+      lastPositionExitKey: "",
+      paperEntryArmed: false
     };
 
     const els = {
@@ -2884,6 +2885,7 @@
 
     function startAutoUpdate() {
       state.autoEnabled = true;
+      state.paperEntryArmed = true;
       state.lastAutoError = "";
       if (state.dataSource?.kind === "demo") {
         state.demoBaseSpot = asNumber(els.spotInput.value, state.demoBaseSpot || 24085);
@@ -3616,11 +3618,17 @@
         theta: row.theta,
         openedAt: new Date(),
         updatedAt: new Date(),
+        entryRefresh: state.refreshCount,
+        entrySource: state.sourceName,
         updates: 0,
         note,
         reason: signalReason(row)
       };
       state.lastPositionExitKey = "";
+    }
+
+    function canOpenPaperEntry() {
+      return Boolean(state.paperEntryArmed && state.autoEnabled && state.refreshCount > 0);
     }
 
     function closePaperPosition(reason, exitPrice) {
@@ -3686,8 +3694,8 @@
           }
         }
       }
-      if (!state.paperPosition && top && positionKey(top) !== state.lastPositionExitKey) {
-        openPaperPosition(top);
+      if (!state.paperPosition && top && canOpenPaperEntry() && positionKey(top) !== state.lastPositionExitKey) {
+        openPaperPosition(top, "Fresh auto entry from refresh " + fmt(state.refreshCount));
       }
     }
 
@@ -3711,14 +3719,14 @@
       const position = state.paperPosition;
       const top = bestPositionSignal();
       if (!position) {
-        els.positionSubtitle.textContent = top ? "Ready for next paper entry" : "Waiting for buy signal";
+        els.positionSubtitle.textContent = top ? "Ready for fresh auto entry" : "Waiting for buy signal";
         els.positionSummary.innerHTML = [
           card("Mode", "Paper", "Broker order off", "watch"),
           card("Top Signal", top ? top.build.label : "-", top ? fmt(top.strike) + " " + top.type + " score " + fmt(top.score, 0) : "No near-ATM buy setup", top ? signalConfig(top.build.label).biasClass : "neutral"),
           card("Position", "Flat", state.lastPositionExitKey ? "Last signal closed" : "No active paper trade", "neutral"),
           card("Refresh", formatInterval(state.autoIntervalMs), state.autoEnabled ? "Auto scanner running" : "Auto scanner off", state.autoEnabled ? "good" : "watch")
         ].join("");
-        els.positionCard.innerHTML = `<div class="empty">No open paper position. Strong near-ATM CE Buy or PE Buy signal will create one automatically.</div>`;
+        els.positionCard.innerHTML = `<div class="empty">${state.autoEnabled ? "Waiting for the next fresh scanner update to open a paper position at current LTP." : "Press Auto Start to open the next paper position from a fresh scanner update, not the old page-load price."}</div>`;
       } else {
         const pnl = positionPnl(position);
         const statusClass = position.status === "OPEN" ? pnl.className : "watch";
@@ -3743,7 +3751,7 @@
               <div class="position-pnl">
                 <small>Live P/L per option unit</small>
                 <strong class="${pnl.value >= 0 ? "num-pos" : "num-neg"}">${pnl.label}</strong>
-                <span>Entry ${fmt(position.entry, 2)} / Current ${fmt(position.current, 2)}</span>
+                <span>Entry ${fmt(position.entry, 2)} / Current ${fmt(position.current, 2)} / Refresh ${fmt(position.entryRefresh || 0)}</span>
               </div>
               <div class="mini-grid">
                 ${mini("Target", fmt(position.target, 2))}
