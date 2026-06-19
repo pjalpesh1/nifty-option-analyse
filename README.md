@@ -39,6 +39,8 @@ The scanner combines OI build-up, change in OI, volume, IV, Greeks, ATM distance
 
 The Strategy tab includes ATM straddle expected move, IV-based expected move, multi-leg strategy cards, and an expiry payoff chart for the top suggested strategy. Calculations are for analysis/paper mode and do not include brokerage, slippage, taxes, or real order execution.
 
+The Signals tab now shows one simplified trade decision: `BUY CE`, `BUY PE`, or `WAIT`. The decision engine combines directional OI pressure, technical context, option-flow proxy, candidate option strength, liquidity, and a no-chase filter near expected-move/support/resistance levels. Paper positions open only from this single decision and close on stop, target, opposite signal, or a clean `WAIT`/exit condition.
+
 ## GitHub Auto Update
 
 The repository includes a GitHub Actions workflow:
