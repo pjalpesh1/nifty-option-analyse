@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "last_attempt_ist": "2026-06-19T18:14:18.384429+05:30",
+  "last_success_ist": "2026-06-19T18:14:21.862721+05:30",
+  "data_changed": true,
+  "symbol": "NIFTY",
+  "rows": 899,
+  "spot": 24013.1,
+  "expiries": [
+    "2026-06-23",
+    "2026-06-30",
+    "2026-07-07",
+    "2026-07-14"
+  ],
+  "nse_timestamp": "19-Jun-2026 15:30:00",
+  "source": "option-chain-v3",
+  "contract_info_warning": "",
+  "sha256": "435616e16783af5aecd4d1e3cd581e7944e53f976992ba6b227be72b3fd40df6",
+  "error": "",
+  "github": "pending"
+}
