@@ -2423,8 +2423,8 @@
         <div class="summary-grid" id="signalSummary"></div>
         <section class="panel">
           <div class="panel-head">
-            <h2>CE / PE Buy Signals</h2>
-            <span id="signalSubtitle">Buy reason scanner</span>
+            <h2>Single Trade Signal</h2>
+            <span id="signalSubtitle">BUY CE / BUY PE / WAIT</span>
           </div>
           <div class="panel-body stack">
             <div class="signal-cards" id="signalCards"></div>
@@ -2875,6 +2875,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       paperPosition: null,
       positionHistory: storedPositionHistory(),
       lastPositionExitKey: "",
+      lastPositionExitRefresh: 0,
       paperEntryArmed: false
     };
 
@@ -4290,8 +4291,10 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         els.mobileCockpit.innerHTML = panel;
         return;
       }
+      const decision = buildTradeDecision(a);
       els.summaryGrid.innerHTML = [
-        card("Primary Signal", a.signal.label, a.signal.text, a.signal.className),
+        card("Trade Signal", decision.action, decision.reason, decision.className),
+        card("Confidence", fmt(decision.confidence, 0), "Entry threshold " + fmt(decision.threshold, 0), decision.confidence >= decision.threshold ? "good" : "watch"),
         card("PCR OI", fmt(a.pcrOi, 2), "PE OI / CE OI", a.pcrOi >= 1 ? "good" : "bad"),
         card("PCR Chg OI", fmt(a.pcrChgOi, 2), "Fresh PE pressure vs CE pressure", a.pcrChgOi >= 1 ? "good" : "bad"),
         card("ATM Premium", fmt(a.atmPremium, 2), "Combined CE + PE premium", "info"),
@@ -4313,19 +4316,20 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       const diff = a.bullish - a.bearish;
       const ceBuy = bestSignal("CE Buy");
       const peBuy = bestSignal("PE Buy");
+      const decision = buildTradeDecision(a);
       const signalClass = a.signal.className || "neutral";
       els.mobileCockpit.innerHTML = `
         <section class="cockpit-hero">
           <div class="cockpit-top">
             <div>
               <span>Live Bias</span>
-              <strong>${escapeHtml(a.signal.label)}</strong>
-              <small>${escapeHtml(a.signal.text)}</small>
+              <strong>${escapeHtml(decision.action)}</strong>
+              <small>${escapeHtml(decision.reason)}</small>
             </div>
             <div class="cockpit-score">
-              <span>Score</span>
-              <b>${fmt(Math.abs(diff), 0)}</b>
-              <span class="badge ${signalClass}">${diff >= 0 ? "Bull +" : "Bear "}${fmt(diff, 0)}</span>
+              <span>Confidence</span>
+              <b>${fmt(decision.confidence, 0)}</b>
+              <span class="badge ${decision.className || signalClass}">${diff >= 0 ? "Bull +" : "Bear "}${fmt(diff, 0)}</span>
             </div>
           </div>
           <div class="cockpit-grid">
@@ -4586,55 +4590,190 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       return `${cfg.definition} Chg OI ${fmtCompact(row.changeOI)}, price chg ${fmt(row.priceChange, 2)}, IV ${pct(row.iv, 2)}. Strike is ${relation}, ${levelText}, ${greekTone}, ${gammaTone}, ${thetaTone}; ${pressure}.${learningText}`;
     }
 
+    function optionBuyCandidate(a, type) {
+      if (!a) return null;
+      const label = type === "CE" ? "CE Buy" : "PE Buy";
+      const primary = a.rows
+        .filter(row => row.type === type && row.build.label === label && a.focusStrikes?.has(row.strike))
+        .sort((left, right) => right.score - left.score || right.flowScore - left.flowScore)[0];
+      if (primary) return { ...primary, analysis: a };
+      const fallback = a.rows
+        .filter(row => row.type === type && a.focusStrikes?.has(row.strike) && row.ltp > 0)
+        .sort((left, right) => {
+          const distanceA = Math.abs(left.strike - a.atmStrike);
+          const distanceB = Math.abs(right.strike - a.atmStrike);
+          if (distanceA !== distanceB) return distanceA - distanceB;
+          return right.volume - left.volume;
+        })[0];
+      if (!fallback) return null;
+      return {
+        ...fallback,
+        analysis: a,
+        build: {
+          label,
+          detail: type === "CE" ? "Lead CE setup" : "Lead PE setup",
+          side: type === "CE" ? "bullish" : "bearish",
+          className: type === "CE" ? "good" : "bad",
+          weight: type === "CE" ? 1.25 : -1.25
+        },
+        score: clamp(fallback.score * 0.82 + unusualActivityScore(fallback) * 0.08 + 6, 0, 100),
+        leadSetup: true
+      };
+    }
+
+    function levelTimingScore(a, type) {
+      const spot = asNumber(els.spotInput.value, 0);
+      const step = medianStep(a.strikes) || 50;
+      const moveUsed = Math.abs(spot - a.atmStrike) / Math.max(a.atmPremium || step, step);
+      let score = 72 - clamp(moveUsed * 18, 0, 28);
+      if (type === "CE") {
+        const resistanceGap = a.maxCe ? a.maxCe.strike - spot : step * 4;
+        if (resistanceGap >= 0 && resistanceGap < step * 1.2) score -= 18;
+        if (spot >= a.upperBreak) score -= 16;
+        if (a.maxPe && spot > a.maxPe.strike) score += 8;
+      } else {
+        const supportGap = a.maxPe ? spot - a.maxPe.strike : step * 4;
+        if (supportGap >= 0 && supportGap < step * 1.2) score -= 18;
+        if (spot <= a.lowerBreak) score -= 16;
+        if (a.maxCe && spot < a.maxCe.strike) score += 8;
+      }
+      return clamp(score, 0, 100);
+    }
+
+    function decisionSideScore(a, type, row) {
+      const diff = a.bullish - a.bearish;
+      const directionScore = type === "CE" ? clamp(50 + diff * 0.9, 0, 100) : clamp(50 - diff * 0.9, 0, 100);
+      const techScore = type === "CE" ? a.technical.biasScore : 100 - a.technical.biasScore;
+      const optionScore = row ? row.score : 0;
+      const flowScore = row ? row.flowScore : 0;
+      const levelScore = levelTimingScore(a, type);
+      return clamp(optionScore * 0.34 + directionScore * 0.26 + techScore * 0.18 + flowScore * 0.1 + levelScore * 0.12, 0, 100);
+    }
+
+    function decisionWarnings(a, type, row) {
+      const spot = asNumber(els.spotInput.value, 0);
+      const step = medianStep(a.strikes) || 50;
+      const warnings = [];
+      if (!row) warnings.push("No liquid option row found");
+      if (type === "CE" && a.maxCe && a.maxCe.strike - spot >= 0 && a.maxCe.strike - spot < step) warnings.push("near CE resistance");
+      if (type === "PE" && a.maxPe && spot - a.maxPe.strike >= 0 && spot - a.maxPe.strike < step) warnings.push("near PE support");
+      if (type === "CE" && spot >= a.upperBreak) warnings.push("move already above expected range");
+      if (type === "PE" && spot <= a.lowerBreak) warnings.push("move already below expected range");
+      if (a.liquidityScore < 45) warnings.push("low liquidity");
+      if (row && row.ltp <= 0) warnings.push("invalid option LTP");
+      return warnings;
+    }
+
+    function buildTradeDecision(a = state.activeAnalysis) {
+      if (!a) {
+        return {
+          action: "WAIT",
+          className: "neutral",
+          optionClass: "neutral",
+          biasClass: "neutral",
+          confidence: 0,
+          threshold: Math.max(asNumber(els.scoreInput.value, 55), 62),
+          reason: "No option-chain data loaded",
+          row: null,
+          warnings: ["No data"]
+        };
+      }
+      const threshold = Math.max(asNumber(els.scoreInput.value, 55), 62);
+      const ceRow = optionBuyCandidate(a, "CE");
+      const peRow = optionBuyCandidate(a, "PE");
+      const ceScore = decisionSideScore(a, "CE", ceRow);
+      const peScore = decisionSideScore(a, "PE", peRow);
+      const type = ceScore >= peScore ? "CE" : "PE";
+      const row = type === "CE" ? ceRow : peRow;
+      const confidence = type === "CE" ? ceScore : peScore;
+      const warnings = decisionWarnings(a, type, row);
+      const opposite = type === "CE" ? peScore : ceScore;
+      const cleanLead = confidence - opposite >= 6;
+      const hardBlock = warnings.some(item => /expected range|invalid|No liquid/.test(item));
+      if (!row || confidence < threshold || !cleanLead || hardBlock) {
+        const reasonParts = [
+          confidence < threshold ? "confidence below entry threshold" : "",
+          !cleanLead ? "CE/PE edge is not clear" : "",
+          hardBlock ? warnings.join(", ") : "",
+          a.technical.points < 5 ? "technical history still building" : ""
+        ].filter(Boolean);
+        return {
+          action: "WAIT",
+          className: "neutral",
+          optionClass: "neutral",
+          biasClass: "neutral",
+          confidence,
+          threshold,
+          reason: reasonParts.join("; ") || "No clean entry",
+          row: null,
+          candidate: row,
+          warnings,
+          ceScore,
+          peScore
+        };
+      }
+      const cfg = signalConfig(row.build.label);
+      const action = type === "CE" ? "BUY CE" : "BUY PE";
+      const reasons = [
+        `${type} confidence ${fmt(confidence, 0)} above ${fmt(threshold, 0)}`,
+        `direction ${fmt(type === "CE" ? a.bullish - a.bearish : a.bearish - a.bullish, 0)}`,
+        `technical ${fmt(type === "CE" ? a.technical.biasScore : 100 - a.technical.biasScore, 0)}`,
+        `option score ${fmt(row.score, 0)}`,
+        `flow ${fmt(row.flowScore, 0)}`
+      ];
+      if (row.leadSetup) reasons.push("lead setup before full long build-up");
+      if (warnings.length) reasons.push("watch " + warnings.join(", "));
+      return {
+        action,
+        type,
+        className: cfg.biasClass,
+        optionClass: cfg.optionClass,
+        biasClass: cfg.biasClass,
+        confidence,
+        threshold,
+        reason: reasons.join(" / "),
+        row: { ...row, decisionAction: action, decisionConfidence: confidence },
+        warnings,
+        ceScore,
+        peScore
+      };
+    }
+
     function renderSignalTab() {
-      const rows = signalRows();
-      const minScore = asNumber(els.scoreInput.value, 55);
-      const focused = rows.filter(row => row.score >= minScore);
-      const labels = ["CE Buy", "PE Buy"];
-      const top = focused[0] || rows[0] || null;
-      const ceBuyCount = focused.filter(row => row.build.label === "CE Buy").length;
-      const peBuyCount = focused.filter(row => row.build.label === "PE Buy").length;
-      els.signalSubtitle.textContent = focused.length + " buy signals above score " + minScore;
+      const decision = buildTradeDecision();
+      const row = decision.row;
+      const candidate = row || decision.candidate || null;
+      const levels = row ? positionRisk(row, row.ltp) : null;
+      els.signalSubtitle.textContent = decision.action + " / confidence " + fmt(decision.confidence, 0) + " / threshold " + fmt(decision.threshold, 0);
       els.signalSummary.innerHTML = [
-        card("Top Signal", top ? top.build.label : "-", top ? `${fmt(top.strike)} ${top.type} score ${fmt(top.score, 0)}` : "No signal", top ? signalConfig(top.build.label).biasClass : ""),
-        card("CE Buy", fmt(ceBuyCount), "Call buy / bullish long build-up", ceBuyCount >= peBuyCount ? "good" : ""),
-        card("PE Buy", fmt(peBuyCount), "Put buy / bearish long build-up", peBuyCount > ceBuyCount ? "bad" : ""),
-        card("Signal Filter", fmt(minScore), "Minimum score currently applied", "info"),
+        card("Trade Signal", decision.action, decision.reason, decision.className),
+        card("Confidence", fmt(decision.confidence, 0), "Entry threshold " + fmt(decision.threshold, 0), decision.confidence >= decision.threshold ? "good" : "watch"),
+        card("Entry", row ? fmt(row.strike) + " " + row.type : "-", row ? "LTP " + fmt(row.ltp, 2) : "No entry until clean signal", row ? decision.optionClass : "neutral"),
+        card("Risk", levels ? "T " + fmt(row.ltp + levels.reward, 2) : "-", levels ? "SL " + fmt(Math.max(row.ltp - levels.risk, 0.05), 2) : "Wait mode", levels ? "info" : "neutral"),
         card("Expiry View", state.activeAnalysis ? prettyDate(state.activeAnalysis.expiry) : "-", state.mode + " mode", "watch"),
-        card("Buy Engine", "On", "OI + price + IV + Greeks + levels", "info")
+        card("Method", "Advanced", "OI + IV + Greeks + flow + technical + no-chase filter", "info")
       ].join("");
-      els.signalCards.innerHTML = labels.map(label => {
-        const cfg = signalConfig(label);
-        const group = focused.filter(row => row.build.label === label);
-        const best = group[0] || rows.find(row => row.build.label === label);
-        const totalChg = group.reduce((total, row) => total + Math.abs(row.changeOI), 0);
-        const avgScore = group.length ? avg(group.map(row => row.score)) : 0;
-        const reasons = best
-          ? [
-              signalReason(best),
-              `Best strike ${fmt(best.strike)} ${best.type}, score ${fmt(best.score, 0)}, OI ${fmtCompact(best.oi)}.`,
-              `Group strength ${fmt(group.length)} signals, Chg OI ${fmtCompact(totalChg)}, avg score ${fmt(avgScore, 0)}.`
-            ]
-          : [
-              cfg.definition,
-              "No row is above the current score filter.",
-              "Lower the score filter or wait for fresh OI and price confirmation."
-            ];
-        return `<article class="signal-card ${cfg.optionClass}">
-          <h3>${escapeHtml(label)} <span class="badge ${cfg.biasClass}">${escapeHtml(cfg.bias)}</span></h3>
-          <strong>${fmt(group.length)}</strong>
-          <p>${escapeHtml(cfg.action)} signal count above the active score filter.</p>
-          <ul class="reason-list">${reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
-        </article>`;
-      }).join("");
-      els.signalReasonTable.innerHTML = focused.slice(0, 100).map(row => {
+      const cardClass = row ? decision.optionClass : "neutral";
+      const reasons = [
+        decision.reason,
+        candidate ? signalReason(candidate) : "Waiting for data and clean trend alignment.",
+        decision.warnings?.length ? "Warning: " + decision.warnings.join(", ") : "No hard block active."
+      ];
+      els.signalCards.innerHTML = `<article class="signal-card ${cardClass}">
+        <h3>${escapeHtml(decision.action)} <span class="badge ${decision.biasClass}">${row ? escapeHtml(row.type) : "WAIT"}</span></h3>
+        <strong>${fmt(decision.confidence, 0)}</strong>
+        <p>${row ? "Single straight option-buy decision." : "No fresh entry. Wait or exit open paper trade."}</p>
+        <ul class="reason-list">${reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>
+      </article>`;
+      const tableRows = row ? [row] : [];
+      els.signalReasonTable.innerHTML = tableRows.map(row => {
         const cfg = signalConfig(row.build.label);
         return `<tr class="${row.type === "CE" ? "ce-row" : "pe-row"}">
-          <td class="left" data-label="Signal"><span class="badge ${cfg.optionClass}">${escapeHtml(row.build.label)}</span></td>
+          <td class="left" data-label="Signal"><span class="badge ${cfg.optionClass}">${escapeHtml(decision.action)}</span></td>
           <td data-label="Bias"><span class="badge ${cfg.biasClass}">${escapeHtml(cfg.bias)}</span></td>
           <td data-label="Expiry">${expiryLabel(row)}</td>
           <td data-label="Strike">${fmt(row.strike)}</td>
-          <td data-label="Score"><b>${fmt(row.score, 0)}</b></td>
+          <td data-label="Score"><b>${fmt(decision.confidence, 0)}</b></td>
           <td data-label="OI">${fmtCompact(row.oi)}</td>
           <td data-label="Chg OI" class="${row.changeOI >= 0 ? "num-pos" : "num-neg"}">${fmtCompact(row.changeOI)}</td>
           <td data-label="LTP">${fmt(row.ltp, 2)}</td>
@@ -4643,9 +4782,9 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
           <td data-label="Delta">${fmt(row.delta, 3)}</td>
           <td data-label="Gamma">${fmt(row.gamma, 5)}</td>
           <td data-label="Theta">${fmt(row.theta, 2)}</td>
-          <td class="left" data-label="Reason">${escapeHtml(signalReason(row))}</td>
+          <td class="left" data-label="Reason">${escapeHtml(decision.reason + ". " + signalReason(row))}</td>
         </tr>`;
-      }).join("") || `<tr><td class="left" colspan="14">No CE/PE buy signals above the current score/search filter. Lower Minimum Score or clear the Strike / Signal Filter.</td></tr>`;
+      }).join("") || `<tr><td class="left" colspan="14">WAIT: ${escapeHtml(decision.reason)}. No straight BUY CE / BUY PE entry right now.</td></tr>`;
     }
 
     function positionKey(row) {
@@ -4654,16 +4793,8 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     }
 
     function bestPositionSignal() {
-      const minScore = asNumber(els.scoreInput.value, 55);
-      return signalRows(false)
-        .filter(row => row.score >= minScore)
-        .filter(row => row.analysis.focusStrikes?.has(row.strike))
-        .sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          const distanceA = Math.abs(a.strike - a.analysis.atmStrike);
-          const distanceB = Math.abs(b.strike - b.analysis.atmStrike);
-          return distanceA - distanceB;
-        })[0] || null;
+      const decision = buildTradeDecision();
+      return decision.action.startsWith("BUY") ? decision.row : null;
     }
 
     function positionRisk(row, entryPrice = row?.ltp || 0) {
@@ -4685,13 +4816,14 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         .find(row => row.expiry === position.expiry && row.strike === position.strike && row.type === position.type) || null;
     }
 
-    function openPaperPosition(row, note = "Auto virtual entry") {
+    function openPaperPosition(row, note = "Auto virtual entry", decision = null) {
       const cfg = signalConfig(row.build.label);
       const levels = positionRisk(row, row.ltp);
       state.paperPosition = {
         key: positionKey(row),
         status: "OPEN",
-        signal: row.build.label,
+        signal: decision?.action || row.decisionAction || row.build.label,
+        setupSignal: row.build.label,
         type: row.type,
         strike: row.strike,
         expiry: row.expiry,
@@ -4726,8 +4858,10 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         entrySource: state.sourceName,
         updates: 0,
         liveTicks: 0,
+        confidence: decision?.confidence || row.decisionConfidence || row.score,
+        decisionReason: decision?.reason || "",
         note,
-        reason: signalReason(row)
+        reason: decision?.reason || signalReason(row)
       };
       state.lastPositionExitKey = "";
     }
@@ -4754,14 +4888,16 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       state.positionHistory = state.positionHistory.slice(0, POSITION_HISTORY_LIMIT);
       savePositionHistory();
       state.lastPositionExitKey = position.key;
+      state.lastPositionExitRefresh = state.refreshCount;
       state.paperPosition = null;
     }
 
-    function updateOpenPaperPosition(row) {
+    function updateOpenPaperPosition(row, decision = null) {
       const position = state.paperPosition;
       if (!position || !row) return;
       position.current = row.ltp;
       position.score = row.score;
+      position.confidence = decision?.confidence || position.confidence || row.score;
       position.oi = row.oi;
       position.changeOI = row.changeOI;
       position.iv = row.iv;
@@ -4774,19 +4910,20 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       position.maxPrice = Math.max(position.maxPrice, row.ltp);
       position.updatedAt = new Date();
       position.updates += 1;
-      position.reason = signalReason(row);
+      position.reason = decision?.reason || signalReason(row);
+      position.decisionReason = decision?.reason || position.decisionReason || "";
       const levels = positionRisk(row, position.entry);
       if (row.ltp > position.entry) {
         position.stop = Math.max(position.stop, row.ltp - levels.risk * 0.85);
       }
-      if (row.score >= 70) {
+      if ((decision?.confidence || row.score) >= 70) {
         position.target = Math.max(position.target, row.ltp + levels.risk * 1.15);
       }
-      if (row.score < asNumber(els.scoreInput.value, 55)) {
+      if ((decision?.confidence || row.score) < asNumber(els.scoreInput.value, 55)) {
         position.stop = Math.max(position.stop, row.ltp - levels.risk * 0.55);
-        position.note = "Signal below score filter; stop tightened";
+        position.note = "Signal confidence below filter; stop tightened";
       } else {
-        position.note = "Auto virtual position live";
+        position.note = decision?.action ? decision.action + " virtual position live" : "Auto virtual position live";
       }
     }
 
@@ -4824,25 +4961,29 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
     }
 
     function updatePositionEngine() {
-      const top = bestPositionSignal();
+      const decision = buildTradeDecision();
+      const top = decision.action.startsWith("BUY") ? decision.row : null;
       if (state.paperPosition?.status === "OPEN") {
         const position = state.paperPosition;
         const row = findPositionRow(position);
         if (!row) {
           closePaperPosition("Data missing / expiry changed", position.current || position.entry);
         } else {
-          updateOpenPaperPosition(row);
+          updateOpenPaperPosition(row, decision.action === position.signal ? decision : null);
           if (position.current >= position.target) {
             closePaperPosition("Target hit", position.current);
           } else if (position.current <= position.stop) {
             closePaperPosition("Stop loss hit", position.current);
-          } else if (top && positionKey(top) !== position.key && top.score >= position.score + 8) {
-            closePaperPosition("Signal changed to " + top.build.label + " " + fmt(top.strike), position.current);
+          } else if (decision.action === "WAIT" && decision.confidence < decision.threshold - 4) {
+            closePaperPosition("Signal changed to WAIT", position.current);
+          } else if (top && decision.action !== position.signal && decision.confidence >= Math.max(position.confidence || 0, position.score || 0) + 4) {
+            closePaperPosition("Signal changed to " + decision.action + " " + fmt(top.strike), position.current);
           }
         }
       }
-      if (!state.paperPosition && top && canOpenPaperEntry() && positionKey(top) !== state.lastPositionExitKey) {
-        openPaperPosition(top, "Fresh auto entry from refresh " + fmt(state.refreshCount));
+      const sameRecentExit = top && positionKey(top) === state.lastPositionExitKey && state.refreshCount <= state.lastPositionExitRefresh + 1;
+      if (!state.paperPosition && top && canOpenPaperEntry() && !sameRecentExit) {
+        openPaperPosition(top, "Fresh " + decision.action + " from refresh " + fmt(state.refreshCount), decision);
       }
     }
 
@@ -4911,12 +5052,15 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
 
     function renderPositionTab() {
       const position = state.paperPosition;
-      const top = bestPositionSignal();
+      const decision = buildTradeDecision();
+      const top = decision.action.startsWith("BUY") ? decision.row : null;
       if (!position) {
-        els.positionSubtitle.textContent = top ? "Ready for fresh auto entry" : "Waiting for buy signal";
+        els.positionSubtitle.textContent = top ? "Ready for " + decision.action : "Waiting / no clean entry";
         els.positionSummary.innerHTML = [
           card("Mode", "Virtual", "No broker order sent", "watch"),
-          card("Top Signal", top ? top.build.label : "-", top ? fmt(top.strike) + " " + top.type + " score " + fmt(top.score, 0) : "No near-ATM buy setup", top ? signalConfig(top.build.label).biasClass : "neutral"),
+          card("Trade Signal", decision.action, decision.reason, decision.className),
+          card("Confidence", fmt(decision.confidence, 0), "Threshold " + fmt(decision.threshold, 0), decision.confidence >= decision.threshold ? "good" : "watch"),
+          card("Entry", top ? fmt(top.strike) + " " + top.type + " LTP " + fmt(top.ltp, 2) : "-", top ? "Straight option buy" : "No near-ATM buy setup", top ? signalConfig(top.build.label).biasClass : "neutral"),
           card("Position", "Flat", state.lastPositionExitKey ? "Last signal closed" : "No active virtual trade", "neutral"),
           card("Refresh", formatInterval(state.autoIntervalMs), state.autoEnabled ? "Auto scanner running" : "Auto scanner off", state.autoEnabled ? "good" : "watch")
         ].join("");
@@ -4928,8 +5072,10 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         els.positionSummary.innerHTML = [
           card("Mode", "Virtual", "No broker order sent", "watch"),
           card("Signal", position.signal, fmt(position.strike) + " " + position.type + " / " + position.bias, position.biasClass),
+          card("Decision Now", decision.action, decision.reason, decision.className),
           card("Live P/L", pnl.label, pct(pnl.pct, 2) + " per option unit", pnl.className),
           card("Risk", "T " + fmt(position.target, 2), "SL " + fmt(position.stop, 2), "info"),
+          card("Confidence", fmt(position.confidence || position.score, 0), "Entry score " + fmt(position.score, 0), position.confidence >= 62 ? "good" : "watch"),
           card("Updates", fmt(position.updates), "Scanner refresh count", "neutral"),
           card("Live Tick", fmt(position.liveTicks || 0), "Last " + timeLabel(position.updatedAt), "info")
         ].join("");
@@ -4953,6 +5099,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
                 ${mini("Stop Loss", fmt(position.stop, 2))}
                 ${mini("Max Price", fmt(position.maxPrice, 2))}
                 ${mini("Score", fmt(position.score, 0))}
+                ${mini("Confidence", fmt(position.confidence || position.score, 0))}
                 ${mini("AI Adj", (position.learningAdjustment > 0 ? "+" : "") + fmt(position.learningAdjustment || 0, 0))}
                 ${mini("Chg OI", fmtCompact(position.changeOI))}
                 ${mini("IV", pct(position.iv, 2))}
@@ -5078,9 +5225,11 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
 
     function signalKey(a) {
       if (!a) return "";
+      const decision = buildTradeDecision(a);
       const diffBucket = Math.round((a.bullish - a.bearish) / 5) * 5;
       const liquidityBucket = Math.round(a.liquidityScore / 10) * 10;
-      return [a.expiry, a.signal.label, diffBucket, liquidityBucket, a.maxPain.strike].join("|");
+      const confidenceBucket = Math.round(decision.confidence / 5) * 5;
+      return [a.expiry, decision.action, confidenceBucket, diffBucket, liquidityBucket, a.maxPain.strike].join("|");
     }
 
     function recordSignalHistory() {
@@ -5090,12 +5239,13 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       if (key === state.lastSignalKey) return;
       const previousKey = state.lastSignalKey;
       state.lastSignalKey = key;
+      const decision = buildTradeDecision(a);
       const item = {
         time: new Date(),
-        signal: a.signal.label,
+        signal: decision.action,
         expiry: a.expiry,
-        className: a.signal.className,
-        diff: a.bullish - a.bearish,
+        className: decision.className,
+        diff: decision.confidence,
         liquidity: a.liquidityScore,
         maxPain: a.maxPain.strike
       };
@@ -5112,7 +5262,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       els.signalHistory.innerHTML = state.signalHistory.map(item => `
         <div class="history-item ${item.className}">
           <span>${formatIstClock(item.time)}</span>
-          <b>${escapeHtml(item.signal)} - ${prettyDate(item.expiry)} - bias ${fmt(item.diff, 0)} - max pain ${fmt(item.maxPain)}</b>
+          <b>${escapeHtml(item.signal)} - ${prettyDate(item.expiry)} - confidence ${fmt(item.diff, 0)} - max pain ${fmt(item.maxPain)}</b>
         </div>`).join("");
     }
 
@@ -5121,7 +5271,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
         beepAlert();
         if ("Notification" in window && Notification.permission === "granted") {
           new Notification("NIFTY signal changed", {
-            body: item.signal + " - " + prettyDate(item.expiry) + " - bias " + fmt(item.diff, 0)
+            body: item.signal + " - " + prettyDate(item.expiry) + " - confidence " + fmt(item.diff, 0)
           });
         }
       } catch (error) {
@@ -5581,7 +5731,7 @@ expiryDate|strikePrice|optionType|openInterest|changeinOpenInterest|lastPrice|ch
       const spot = asNumber(els.spotInput.value, 0);
       els.snapSpot.textContent = fmt(spot, 2);
       els.snapExpiry.textContent = a ? prettyDate(a.expiry) : "-";
-      els.snapSignal.textContent = a ? a.signal.label : "-";
+      els.snapSignal.textContent = a ? buildTradeDecision(a).action : "-";
       els.snapUpdated.textContent = state.lastUpdated ? formatIstClock(state.lastUpdated) : "-";
       els.dataStatus.textContent = state.sourceName + " - " + state.contracts.length + " contracts - refresh " + fmt(state.refreshCount) + " - " + marketStatusLabel();
     }
